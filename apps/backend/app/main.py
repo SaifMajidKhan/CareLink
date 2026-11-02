@@ -1,9 +1,14 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
+
+from app.database import check_database_connection
 
 app = FastAPI(
     title="CareLink API",
-    description="Backend API for medication adherence and chronic-care coordination.",
-    version="0.1.0",
+    description=(
+        "Backend API for medication adherence "
+        "and chronic-care coordination."
+    ),
+    version="0.2.0",
 )
 
 
@@ -21,3 +26,20 @@ def health_check():
         "status": "healthy",
         "service": "CareLink Backend",
     }
+
+
+@app.get("/health/db")
+def database_health_check():
+    try:
+        check_database_connection()
+
+        return {
+            "status": "healthy",
+            "database": "connected",
+        }
+
+    except Exception:
+        raise HTTPException(
+            status_code=503,
+            detail="Database connection failed",
+        )
