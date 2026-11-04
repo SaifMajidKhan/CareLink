@@ -1,0 +1,79 @@
+{
+  "is_synthetic": true,
+  "evaluation_split": "validation",
+  "test_evaluated": false,
+  "threshold": 0.5,
+  "hyperparameter_search": false,
+  "training_rows": 4842,
+  "validation_rows": 1081,
+  "excluded_unknown": {
+    "train": 1542,
+    "validation": 287
+  },
+  "training_positive_rate": 0.3583230070218918,
+  "validation_positive_rate": 0.333950046253469,
+  "feature_allowlist": [
+    "scheduled_doses_14d",
+    "taken_reports_14d",
+    "skipped_reports_14d",
+    "unconfirmed_doses_14d",
+    "taken_reports_3d",
+    "skipped_reports_3d",
+    "unconfirmed_doses_3d"
+  ],
+  "metrics": {
+    "majority_baseline": {
+      "accuracy": 0.666049953746531,
+      "balanced_accuracy": 0.5,
+      "precision": 0.0,
+      "recall": 0.0,
+      "f1": 0.0,
+      "roc_auc": 0.5,
+      "average_precision": 0.333950046253469,
+      "brier_score": 0.333950046253469,
+      "confusion_matrix_rows_actual_0_1_columns_predicted_0_1": [
+        [
+          720,
+          0
+        ],
+        [
+          361,
+          0
+        ]
+      ]
+    },
+    "logistic_regression": {
+      "accuracy": 0.7132284921369103,
+      "balanced_accuracy": 0.6100011542012926,
+      "precision": 0.6545454545454545,
+      "recall": 0.29916897506925205,
+      "f1": 0.41064638783269963,
+      "roc_auc": 0.6890658664204371,
+      "average_precision": 0.5359124464831935,
+      "brier_score": 0.1988450721263452,
+      "confusion_matrix_rows_actual_0_1_columns_predicted_0_1": [
+        [
+          663,
+          57
+        ],
+        [
+          253,
+          108
+        ]
+      ]
+    }
+  },
+  "versions": {
+    "python": "3.13.16",
+    "scikit_learn": "1.9.1",
+    "numpy": "2.5.3"
+  },
+  "source_sha256": "2a5654b2817bb47e953439141386de15858c2528adb3aa48e6ca3c0b61e45284",
+  "limitations": [
+    "Invented data only; not medical or real-world validation",
+    "Unknown days excluded; results concern resolved reports only",
+    "Overlapping histories create correlated rows; no independent-row confidence intervals",
+    "Patient-disjoint split but no later-calendar-period evaluation",
+    "Probabilities are not clinically calibrated"
+  ]
+}

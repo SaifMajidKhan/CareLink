@@ -1,0 +1,47 @@
+{
+  "is_synthetic": true,
+  "model": "standardized_logistic_regression",
+  "feature_order": [
+    "scheduled_doses_14d",
+    "taken_reports_14d",
+    "skipped_reports_14d",
+    "unconfirmed_doses_14d",
+    "taken_reports_3d",
+    "skipped_reports_3d",
+    "unconfirmed_doses_3d"
+  ],
+  "scaler_mean": [
+    21.211069805865346,
+    12.648492358529534,
+    4.1992978108219745,
+    4.3632796365138375,
+    2.248864105741429,
+    0.7498967368855844,
+    1.546468401486989
+  ],
+  "scaler_scale": [
+    6.996817100442953,
+    5.595288740657591,
+    3.277937388958319,
+    2.7373678598913354,
+    1.380300324744359,
+    0.9373304553692432,
+    1.1218645424303346
+  ],
+  "coefficients": [
+    0.194134593342136,
+    -0.09910065784668756,
+    0.4608714262111319,
+    0.14689781521036252,
+    0.043706511643786104,
+    0.1512549177275376,
+    0.07930148787281786
+  ],
+  "intercept": -0.6376292279749809,
+  "classes": [
+    0,
+    1
+  ],
+  "threshold": 0.5,
+  "purpose": "Demo only; not approved for app deployment"
+}
