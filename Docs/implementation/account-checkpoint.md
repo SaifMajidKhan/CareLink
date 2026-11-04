@@ -1,12 +1,13 @@
 # Save the patient UI and account checkpoint
 
-The patient-app checkpoint is being saved and pushed at the user's request on
-`saleem`. It includes the UI redesign and earlier guest/account improvements.
-Matching backend authentication changes remain local for a separate checkpoint.
-The portal and unrelated planning work are outside this checkpoint.
+The patient-app and matching backend authentication work are saved as separate
+checkpoints on `saleem`, at the user's request. The app checkpoint includes the
+UI redesign and earlier guest/account improvements. Provider credentials and
+real sign-in testing remain separate setup steps. The portal and unrelated
+planning work are outside these checkpoints.
 
-Section 1 records the app commit commands. Check `git status` before using them
-again; already committed files do not need another commit.
+The commands below record the checkpoint workflow. Check `git status` before
+using them again; already committed files do not need another commit.
 
 ## 1. Patient app
 

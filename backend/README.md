@@ -53,8 +53,14 @@ Use a hosted PostgreSQL database for a public deployment; never use the local SQ
 - `DATABASE_URL_UNPOOLED`: the direct connection string from the same Neon database.
 - `CORS_ORIGINS`: exact deployed portal address or addresses, separated by commas. Leave it as `http://localhost:4200` only for a local portal.
 
-After deployment, test `https://YOUR-API.onrender.com/health`. Enter that same HTTPS address in the patient app's **Server connection** field. The app deliberately refuses non-HTTPS remote addresses.
+After deployment, test `https://YOUR-API.onrender.com/health`. The patient app's default HTTPS address is set in `lib/connected/config/app_config.dart`; patients do not enter server addresses. A developer can use the `CARELINK_API` build override for local testing.
 
 Run tests with `python -m pytest tests -q`. Use an isolated test database. Passwords use scrypt; opaque session tokens are hashed at rest and expire after seven days. Public registration cannot select administrator or coordinator roles.
 
-Public API hosting has not been deployed by this setup. A Render deployment must use its HTTPS endpoint and fictional data. Production work still required includes email ownership verification, password recovery, persistent distributed abuse controls, versioned database migrations/backups, encrypted phone databases, physical-device notification acceptance, and explicitly reviewed coordinator/admin policies.
+The API is hosted at https://carelink-api-orjq.onrender.com with Neon PostgreSQL. Production work still required includes email ownership verification, password recovery, persistent distributed abuse controls, versioned database migrations/backups, encrypted phone databases, physical-device notification acceptance, and explicitly reviewed coordinator/admin policies.
+
+## Optional Google and Facebook sign-in
+
+`app/social_auth.py` adds provider availability, browser authorization, verified provider callbacks and a one-time PKCE-bound handoff to the Android app. Email authentication keeps working when these optional providers are not configured. No email-based automatic account linking is performed.
+
+Set `PUBLIC_API_URL` and the relevant Google/Meta credentials privately in Render. Meta also needs an explicitly selected supported `FACEBOOK_GRAPH_VERSION`. See [account setup and verification](../Docs/implementation/account-and-social-sign-in.md) for the exact callbacks, environment-variable names and limits. Provider activation and real-account walkthroughs remain pending developer-app configuration.

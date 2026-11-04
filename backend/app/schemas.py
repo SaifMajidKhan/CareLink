@@ -1,3 +1,4 @@
+import re
 from datetime import date, datetime
 from typing import Literal
 from zoneinfo import ZoneInfo
@@ -9,21 +10,22 @@ class BaseModel(PydanticBaseModel):
 class Credentials(BaseModel):
     email: str = Field(min_length=3, max_length=254)
     password: str = Field(min_length=10, max_length=128)
-    @field_validator('email')
+    @field_validator('email', mode='before')
     @classmethod
     def email_valid(cls, value):
+        if not isinstance(value, str): raise ValueError('Enter a valid email address')
         value = value.strip().lower()
-        if '@' not in value or '.' not in value.split('@')[-1]:
+        if not re.fullmatch(r'[^\s@]+@[^\s@]+\.[^\s@]+', value):
             raise ValueError('Enter a valid email address')
         return value
 
 class Registration(Credentials):
     name: str = Field(min_length=1, max_length=80)
     role: Literal['patient', 'caregiver'] = 'patient'
-    @field_validator('name')
+    @field_validator('name', mode='before')
     @classmethod
     def name_valid(cls, value):
-        if not value.strip(): raise ValueError('Name is required')
+        if not isinstance(value, str) or not value.strip(): raise ValueError('Name is required')
         return value.strip()
 
 class Profile(BaseModel):

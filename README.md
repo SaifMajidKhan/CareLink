@@ -2,7 +2,7 @@
 
 BSCS Final Year Project: medication reporting and chronic-care coordination for hypertension and diabetes.
 
-**Progress update: 4 November 2026.** The patient-app checkpoint includes the redesigned screens, guest welcome and clearer account forms. The existing FastAPI backend is deployed on Render with Neon PostgreSQL. Google/Facebook client integration is prepared; the matching backend authentication changes remain a separate local checkpoint, and provider activation needs developer-app configuration. The web portal is a separate team workstream. Use fictional data for testing; CareLink remains an FYP prototype, not a clinically validated product.
+**Progress update: 4 November 2026.** The patient-app checkpoint includes the redesigned screens, guest welcome and clearer account forms. The existing FastAPI backend is deployed on Render with Neon PostgreSQL. Google/Facebook sign-in code is included in separate app and backend checkpoints; activation still needs developer-app configuration and a real-provider walkthrough. The web portal is a separate team workstream. Use fictional data for testing; CareLink remains an FYP prototype, not a clinically validated product.
 
 ## Project documents
 
@@ -16,7 +16,7 @@ BSCS Final Year Project: medication reporting and chronic-care coordination for 
 - Patient sign-up/sign-in, editable name and chronic condition, Patient ID and QR display.
 - Guest welcome with account prompts for private features, hosted-server configuration outside the patient UI, and clear inline registration errors.
 - Redesigned Today, History and Profile with readable timestamps, clear empty states, grouped settings, a separate QR/Patient ID page and consistent medicine/report/reading/caregiver forms. Small-screen checks cover larger text; clinical and physical-device usability acceptance remains open.
-- Google/Facebook browser sign-in client and setup guide; activation is pending the separate backend checkpoint, credentials and provider configuration.
+- Google/Facebook browser sign-in client, backend identity verification and setup guide; activation is pending deployment of the authentication checkpoint, credentials and provider configuration.
 - Daily medication schedules with multiple times, effective dates and explicit timezone; patient ownership enforced by the API.
 - Today and History screens, Taken/Skipped reporting, approximate taken times and reasoned corrections with server audit records.
 - Local phone cache and durable upload queue, account separation, acknowledgement and visible conflict handling.
@@ -28,7 +28,7 @@ BSCS Final Year Project: medication reporting and chronic-care coordination for 
 - FastAPI account access rules, schedules, reports, readings and caregiver-consent APIs are committed and pushed.
 - The backend is deployed at [CareLink API](https://carelink-api-orjq.onrender.com), backed by Neon PostgreSQL. Health and API documentation checks passed; physical-phone acceptance remains outstanding.
 - A synthetic adherence-model experiment, Colab evidence and a separate research-example endpoint are available. Live personal adherence prediction remains unfinished and unvalidated.
-- Additional Google/Facebook verification and account-handoff code is prepared locally and is not included in the patient UI commit.
+- Google/Facebook verification and one-time account-handoff code has its own backend authentication checkpoint. Its 33 backend tests pass; real provider sign-in remains pending configuration.
 
 ### Web portal — separate workstream
 
@@ -62,8 +62,7 @@ Synthetic validation accuracy was 71.3% versus a 66.6% majority baseline. At thr
 
 ## Next work
 
-- Review and commit the matching Google/Facebook backend integration separately.
-- Configure Google and Meta developer apps, then verify real provider sign-in.
+- Deploy the backend authentication checkpoint, configure Google and Meta developer apps, then verify real provider sign-in.
 - Complete the hosted app walkthrough, including registration, saved records and offline upload.
 - Continue the synthetic-model threshold review and real-data feasibility work before claiming personal prediction.
 - Test reminders, offline upload and account flows on a physical Android phone.

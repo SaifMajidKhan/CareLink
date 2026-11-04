@@ -26,6 +26,26 @@ class SessionToken(Base):
     user_id: Mapped[str] = mapped_column(String(40), index=True)
     expires: Mapped[str] = mapped_column(String(40))
 
+class SocialIdentity(Base):
+    __tablename__ = 'social_identities'
+    __table_args__ = (UniqueConstraint('provider', 'subject'),)
+    id: Mapped[str] = mapped_column(String(40), primary_key=True)
+    provider: Mapped[str] = mapped_column(String(16))
+    subject: Mapped[str] = mapped_column(String(255))
+    user_id: Mapped[str] = mapped_column(String(40), index=True)
+
+class SocialFlow(Base):
+    __tablename__ = 'social_flows'
+    state_digest: Mapped[str] = mapped_column(String(64), primary_key=True)
+    provider: Mapped[str] = mapped_column(String(16))
+    challenge: Mapped[str] = mapped_column(String(43))
+    nonce: Mapped[str] = mapped_column(String(64))
+    provider_verifier: Mapped[str] = mapped_column(String(128))
+    status: Mapped[str] = mapped_column(String(16), default='pending')
+    expires: Mapped[int] = mapped_column(Integer, index=True)
+    user_id: Mapped[str] = mapped_column(String(40), default='')
+    code_digest: Mapped[str] = mapped_column(String(64), default='')
+
 class Connection(Base):
     __tablename__ = 'connections'
     id: Mapped[str] = mapped_column(String(40), primary_key=True)

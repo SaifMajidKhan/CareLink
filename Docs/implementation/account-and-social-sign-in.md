@@ -1,6 +1,6 @@
 # Welcome, guest access and account sign-in
 
-Updated: 4 November 2026. The Flutter client is included in the patient-app checkpoint. The matching backend authentication code remains local for a separate commit. Public provider sign-in is not activated until that code is deployed and the team's Google and Meta developer apps are configured and tested.
+Updated: 4 November 2026. The Flutter client and matching backend authentication code are saved in separate checkpoints on `saleem`. Public provider sign-in is not activated until the backend checkpoint is deployed and the team's Google and Meta developer apps are configured and tested.
 
 ## What changed
 
