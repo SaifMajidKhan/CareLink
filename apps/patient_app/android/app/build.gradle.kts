@@ -1,13 +1,33 @@
+import java.util.Properties
+
 plugins {
     id("com.android.application")
     // The Flutter Gradle Plugin must be applied after the Android and Kotlin Gradle plugins.
     id("dev.flutter.flutter-gradle-plugin")
 }
 
+val nativeAuth = Properties().apply {
+    val settings = rootProject.file("native-auth.properties")
+    if (settings.exists()) settings.inputStream().use { load(it) }
+}
+fun nativeAuthValue(name: String): String =
+    (System.getenv("CARELINK_$name") ?: nativeAuth.getProperty(name, ""))
+        .trim().removeSurrounding("\"").removeSurrounding("'")
+
+val googleServerClientId = nativeAuthValue("GOOGLE_SERVER_CLIENT_ID")
+val facebookAppId = nativeAuthValue("FACEBOOK_APP_ID")
+val facebookClientToken = nativeAuthValue("FACEBOOK_CLIENT_TOKEN")
+val facebookConfigured = facebookAppId.matches(Regex("[0-9]+")) &&
+    facebookClientToken.isNotEmpty()
+
 android {
-    namespace = "com.example.carelink_patient"
+    namespace = "com.carelinkteam.patient"
     compileSdk = flutter.compileSdkVersion
     ndkVersion = flutter.ndkVersion
+
+    buildFeatures {
+        resValues = true
+    }
 
     compileOptions {
         isCoreLibraryDesugaringEnabled = true
@@ -16,8 +36,8 @@ android {
     }
 
     defaultConfig {
-        // TODO: Specify your own unique Application ID (https://developer.android.com/studio/build/application-id.html).
-        applicationId = "com.example.carelink_patient"
+        // Stable patient-app identity. Keep this ID for future Play Store updates.
+        applicationId = "com.carelinkteam.patient"
         // You can update the following values to match your application needs.
         // For more information, see: https://flutter.dev/to/review-gradle-config.
         minSdk = flutter.minSdkVersion
@@ -28,6 +48,11 @@ android {
         // flag during build.
         versionCode = flutter.versionCode
         versionName = flutter.versionName
+        resValue("string", "carelink_google_server_client_id", googleServerClientId)
+        resValue("string", "facebook_app_id", facebookAppId.ifEmpty { "0" })
+        resValue("string", "facebook_client_token", facebookClientToken.ifEmpty { "not-configured" })
+        resValue("string", "fb_login_protocol_scheme", "fb${facebookAppId.ifEmpty { "0" }}")
+        resValue("bool", "carelink_facebook_configured", facebookConfigured.toString())
     }
 
     buildTypes {

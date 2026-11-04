@@ -29,7 +29,7 @@ server addresses. Saved sessions keep their original account/server scope.
 - `lib/connected/views/`: separate Today, History and Profile layouts.
 - `lib/connected/models/`: presentation summaries that retain explicit dose outcomes.
 - `lib/connected/utils/`: readable dates, times, names and units.
-- `lib/connected/auth/`: shared validation and provider browser sign-in.
+- `lib/connected/auth/`: shared validation, native Google/Facebook SDK boundary and server credential exchange.
 - `lib/connected/widgets/`: reusable cards, action rows, empty states, notices, dose status, save bars, branding and account controls.
 - `lib/connected/data/`: API client, account-scoped SQLite outbox/cache and reminders.
 - `lib/core/theme/`: shared colour, typography, button, input and navigation styles.
@@ -43,25 +43,34 @@ See [the UI redesign notes](../../Docs/implementation/patient-ui-redesign.md).
 
 ## Google and Facebook
 
-The integration is prepared, but both providers need developer-app configuration
-on the backend. Their buttons stay disabled until the backend reports that the
-required settings exist. The app contains no provider client secret or database
-password. See [the complete setup guide](../../Docs/implementation/account-and-social-sign-in.md).
+The Android build now uses native SDK sign-in. Google opens the device account
+picker. Facebook uses its app when possible and may use a secure browser/custom
+tab as an SDK fallback. Configure the final package, debug certificate and local
+SDK settings using [the native setup guide](../../Docs/implementation/native-social-sign-in.md).
 
-This update adds an Android callback activity and browser-authentication plugin.
-Stop and Run the app again after fetching packages; hot reload alone is not enough.
+The application ID is `com.carelinkteam.patient`. It is different from the old
+starter installation; uploaded records remain on the backend, while that old
+installation's local cache/outbox is not automatically copied into this app.
+
+Buttons stay disabled until the backend supports native sign-in and the local
+Android SDK settings exist. The app contains no provider App Secret/Google Client
+Secret or database password. See [the account guide](../../Docs/implementation/account-and-social-sign-in.md)
+for server configuration and the history of the earlier browser implementation.
+
+This update changes Android dependencies, resources and callbacks. Stop and Run
+the app again after fetching packages; hot reload alone is not enough.
 
 ## Checks recorded on 4 November 2026
 
 - Flutter analysis: no issues found.
-- Flutter tests: 62 passed, including signed-in navigation, larger-text layouts,
+- Flutter tests: 65 passed, including native SDK exchange, signed-in navigation, larger-text layouts,
   report/correction payloads, reading units and caregiver approval confirmation.
-- Android debug APK: built and installed as an update on the emulator.
+- Android debug APK: built for `com.carelinkteam.patient` and installed separately
+  from the old starter package on the emulator.
 - Guest welcome and account prompt: visually checked on the emulator.
 - Signed-in Today, History, Profile, care ID, readings and medicine/reading
   entry forms: visually checked on the emulator. No account records were
   created during this design walkthrough.
 
 Real provider sign-in and physical-phone acceptance remain separate checks.
-The stable browser plugin currently emits a non-fatal warning about Kotlin
-Gradle Plugin compatibility with a future Flutter release; the current build passes.
+The earlier browser-authentication package has been removed from the phone app.

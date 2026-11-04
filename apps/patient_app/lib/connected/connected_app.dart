@@ -17,7 +17,13 @@ class ConnectedCareLinkApp extends StatefulWidget {
 }
 
 class _ConnectedCareLinkAppState extends State<ConnectedCareLinkApp> {
-  static const _secure = FlutterSecureStorage();
+  static const _secure = FlutterSecureStorage(
+    aOptions: AndroidOptions(
+      migrateOnAlgorithmChange: true,
+      migrateWithBackup: true,
+      resetOnError: false,
+    ),
+  );
   Map<String, dynamic>? _session;
   AccountStore? _store;
   bool _loading = true;

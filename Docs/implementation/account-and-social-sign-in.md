@@ -1,6 +1,40 @@
 # Welcome, guest access and account sign-in
 
-Updated: 4 November 2026. The Flutter client and matching backend authentication code are saved in separate checkpoints on `saleem`. Public provider sign-in is not activated until the backend checkpoint is deployed and the team's Google and Meta developer apps are configured and tested.
+## Current native Android update
+
+The new phone implementation uses native Google/Facebook SDKs and a professional
+application ID, `com.carelinkteam.patient`. It exchanges verified provider tokens
+through new backend endpoints. See [native setup and verification](native-social-sign-in.md).
+The browser handoff described below remains a record of the earlier deployment
+and is retained on the server for older installed clients.
+
+Updated: 4 November 2026. The Flutter client and matching backend authentication code are saved in separate checkpoints on `saleem`. The backend is deployed and detects both Google and Facebook settings. Successful real-account sign-in and restored sessions still need explicit Android walkthrough confirmation; public availability also depends on each provider's app settings and requirements.
+
+## Deployment check — 4 November 2026
+
+The user deployed the authentication backend and entered the Google client
+settings privately in Render. Read-only checks returned HTTP 200 for `/health`
+and `/auth/providers`, with `google.available: true` and
+`facebook.available: false`.
+
+A temporary Google start request returned HTTP 200. Its authorization host,
+HTTPS callback and S256 challenge were checked. Cancelling only that temporary
+flow returned HTTP 303 to the expected CareLink app callback without creating
+a login session. This verifies the deployed handoff plumbing; it does not prove
+a successful login with a real Google account.
+
+Later the same day, the user added the Facebook settings privately and deployed
+again. `/auth/providers` returned HTTP 200 with both providers available. A
+temporary Facebook start request returned HTTP 200 and used the expected
+`www.facebook.com/v26.0/dialog/oauth` destination, the registered HTTPS callback
+and the `email,public_profile` scopes. Cancelling only that test flow returned
+HTTP 303 to the expected app callback without creating a login session.
+
+These checks do not verify the Facebook App Secret, a real Meta token exchange,
+or provider access for a real account. Next: complete Google and Facebook
+sign-in on Android, including return to the app and session restoration.
+For Facebook, start with the account that created the Meta app. Existing
+email/password accounts are not automatically linked by matching email.
 
 ## What changed
 
@@ -45,7 +79,7 @@ flutter --no-version-check run -d emulator-5554 --dart-define=CARELINK_API=http:
 
 A restored session retains its original server. Sign out normally before switching servers; unsent reports still block sign-out. Their account/server separation is preserved.
 
-## How social sign-in works
+## Earlier browser-handoff flow
 
 The app opens the provider in the system's browser authentication tab. The backend receives the provider callback at its fixed HTTPS address, verifies the provider identity and redirects to `carelink://auth/callback` with a short-lived one-time code. The device exchanges that code using its original PKCE verifier and receives the normal CareLink session over HTTPS. CareLink session tokens and provider secrets are not placed in the callback URL.
 

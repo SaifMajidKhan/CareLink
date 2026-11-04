@@ -2,7 +2,7 @@
 
 BSCS Final Year Project: medication reporting and chronic-care coordination for hypertension and diabetes.
 
-**Progress update: 4 November 2026.** The patient-app checkpoint includes the redesigned screens, guest welcome and clearer account forms. The existing FastAPI backend is deployed on Render with Neon PostgreSQL. Google/Facebook sign-in code is included in separate app and backend checkpoints; activation still needs developer-app configuration and a real-provider walkthrough. The web portal is a separate team workstream. Use fictional data for testing; CareLink remains an FYP prototype, not a clinically validated product.
+**Progress update: 4 November 2026.** The patient-app checkpoint includes the redesigned screens, guest welcome and clearer account forms. The existing FastAPI backend is deployed on Render with Neon PostgreSQL. Google/Facebook sign-in code is included in separate app and backend checkpoints; the deployed service detects both provider settings and passes start/cancellation checks. Real-account Android walkthroughs still need confirmation. The web portal is a separate team workstream. Use fictional data for testing; CareLink remains an FYP prototype, not a clinically validated product.
 
 ## Project documents
 
@@ -14,9 +14,10 @@ BSCS Final Year Project: medication reporting and chronic-care coordination for 
 ### Patient app
 
 - Patient sign-up/sign-in, editable name and chronic condition, Patient ID and QR display.
+- Intended Android release ID: `com.carelinkteam.patient`. Native Google account selection and the Facebook Android SDK replace the earlier browser-handoff client. The SDK update passes 65 app tests and 49 backend tests; native endpoint deployment and real account walkthroughs are being completed.
 - Guest welcome with account prompts for private features, hosted-server configuration outside the patient UI, and clear inline registration errors.
 - Redesigned Today, History and Profile with readable timestamps, clear empty states, grouped settings, a separate QR/Patient ID page and consistent medicine/report/reading/caregiver forms. Small-screen checks cover larger text; clinical and physical-device usability acceptance remains open.
-- Google/Facebook browser sign-in client, backend identity verification and setup guide; activation is pending deployment of the authentication checkpoint, credentials and provider configuration.
+- Google/Facebook browser sign-in client, backend identity verification and setup guide. Both provider settings are detected by the deployed backend, and start/cancellation checks pass. Real-account sign-in and session restoration still need Android walkthrough confirmation.
 - Daily medication schedules with multiple times, effective dates and explicit timezone; patient ownership enforced by the API.
 - Today and History screens, Taken/Skipped reporting, approximate taken times and reasoned corrections with server audit records.
 - Local phone cache and durable upload queue, account separation, acknowledgement and visible conflict handling.
@@ -28,7 +29,7 @@ BSCS Final Year Project: medication reporting and chronic-care coordination for 
 - FastAPI account access rules, schedules, reports, readings and caregiver-consent APIs are committed and pushed.
 - The backend is deployed at [CareLink API](https://carelink-api-orjq.onrender.com), backed by Neon PostgreSQL. Health and API documentation checks passed; physical-phone acceptance remains outstanding.
 - A synthetic adherence-model experiment, Colab evidence and a separate research-example endpoint are available. Live personal adherence prediction remains unfinished and unvalidated.
-- Google/Facebook verification and one-time account-handoff code has its own backend authentication checkpoint. Its 33 backend tests pass; real provider sign-in remains pending configuration.
+- Google/Facebook verification and one-time account-handoff code has its own backend authentication checkpoint. Its 33 backend tests pass; real provider sign-in remains pending walkthrough confirmation.
 
 ### Web portal — separate workstream
 
@@ -49,6 +50,11 @@ BSCS Final Year Project: medication reporting and chronic-care coordination for 
 
 The original local patient prototype and its tests are retained. Its demo SQLite database is not uploaded or silently migrated into an account.
 
+The professional package is a separate installation from the starter
+`com.example.carelink_patient` build. Server records stay with their accounts;
+the old installation's local cache and pending reports are not automatically
+copied into the new app. No Play Console build has been uploaded or published.
+
 ## ML evidence
 
 The existing experiment generated 120 fictional patients over 90 days (16,380 dose records). It produced 9,120 examples and excluded 2,072 unknown outcomes. Logistic regression was trained on 4,842 examples and evaluated on 1,081 validation examples from separate patients.
@@ -62,7 +68,7 @@ Synthetic validation accuracy was 71.3% versus a 66.6% majority baseline. At thr
 
 ## Next work
 
-- Deploy the backend authentication checkpoint, configure Google and Meta developer apps, then verify real provider sign-in.
+- Complete Google and Facebook sign-in walkthroughs on Android, including return to the app and session restoration. Deployed start/cancellation checks do not establish successful real-account sign-in.
 - Complete the hosted app walkthrough, including registration, saved records and offline upload.
 - Continue the synthetic-model threshold review and real-data feasibility work before claiming personal prediction.
 - Test reminders, offline upload and account flows on a physical Android phone.
@@ -73,6 +79,7 @@ No diagnosis, prescribing, treatment changes or proof of medicine ingestion is p
 - [Hosted API deployment](Docs/implementation/deploy-render.md)
 - [Guest/account flow and Google/Facebook setup](Docs/implementation/account-and-social-sign-in.md)
 - [Patient UI redesign and verification](Docs/implementation/patient-ui-redesign.md)
+- [Native sign-in and professional Android package](Docs/implementation/native-social-sign-in.md)
 - [Commands to save the current checkpoint](Docs/implementation/account-checkpoint.md)
 
 ## Team and Git workflow

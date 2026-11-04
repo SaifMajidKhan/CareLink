@@ -1,0 +1,8 @@
+# Copy to native-auth.properties on each developer machine.
+# Use the existing Web application client ID from Google Cloud.
+GOOGLE_SERVER_CLIENT_ID=
+# From Meta App settings > Basic.
+FACEBOOK_APP_ID=
+# From Meta App settings > Advanced > Security > Client Token.
+# This is the Android SDK Client Token, never the Facebook App Secret.
+FACEBOOK_CLIENT_TOKEN=
