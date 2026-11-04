@@ -40,6 +40,10 @@ dependencies:
   timezone: ^0.11.2
   flutter_secure_storage: 9.2.4
   qr_flutter: 4.1.0
+  flutter_web_auth_2: 5.1.0
+  crypto: 3.0.8
+  flutter_svg: ^2.3.2
+  characters: ^1.4.1
 
 dev_dependencies:
   flutter_test:
@@ -63,6 +67,8 @@ flutter:
   # included with your application, so that you can use the icons in
   # the material Icons class.
   uses-material-design: true
+  assets:
+    - assets/auth/google.svg
 
   # To add assets to your application, add an assets section, like this:
   # assets:

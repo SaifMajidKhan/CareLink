@@ -1,7 +1,12 @@
 import 'package:flutter/material.dart';
 
+import '../../core/theme/app_theme.dart';
 import '../data/account_store.dart';
-import '../data/api_client.dart';
+import '../utils/care_format.dart';
+import '../widgets/care_card.dart';
+import '../widgets/care_empty_state.dart';
+import '../widgets/care_notice.dart';
+import 'reading_form.dart';
 
 class ReadingsScreen extends StatefulWidget {
   const ReadingsScreen({super.key, required this.store});
@@ -22,183 +27,161 @@ class _ReadingsScreenState extends State<ReadingsScreen> {
 
   Future<void> _load() async {
     setState(() => _busy = true);
+    String? error;
     try {
       final data = await widget.store.api.call(
         'GET',
         '/patients/${widget.store.userId}/readings',
       );
       await widget.store.cache('readings', data);
-      _error = null;
-    } catch (e) {
-      _error = e.toString();
+    } catch (failure) {
+      error = failure.toString();
     }
-    final cache = await widget.store.cached('readings');
-    if (mounted) {
-      setState(() {
-        _rows = cache?['data'] ?? [];
-        _updated = cache?['updated'];
-        _busy = false;
-      });
+    try {
+      final cache = await widget.store.cached('readings');
+      if (mounted) {
+        setState(() {
+          _rows = cache?['data'] ?? [];
+          _updated = cache?['updated'];
+          _error = error;
+        });
+      }
+    } catch (_) {
+      if (mounted) {
+        setState(
+          () => _error = 'The saved readings on this phone could not be loaded. Please try again.',
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _busy = false);
     }
   }
 
   Future<void> _add() async {
-    final result = await Navigator.push<bool>(
+    final saved = await Navigator.push<bool>(
       context,
       MaterialPageRoute(builder: (_) => ReadingForm(api: widget.store.api)),
     );
-    if (result == true && mounted) await _load();
+    if (saved == true && mounted) await _load();
+  }
+
+  Widget _reading(dynamic row) {
+    final pressure = row['kind'] == 'blood_pressure';
+    return CareCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: AppTheme.tealSoft,
+                  borderRadius: BorderRadius.circular(13),
+                ),
+                child: Icon(
+                  pressure
+                      ? Icons.monitor_heart_outlined
+                      : Icons.water_drop_outlined,
+                  color: AppTheme.teal,
+                  size: 23,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  pressure ? 'Blood pressure' : 'Blood glucose',
+                  style: Theme.of(context).textTheme.titleMedium,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 18),
+          Wrap(
+            spacing: 8,
+            crossAxisAlignment: WrapCrossAlignment.end,
+            children: [
+              Text(
+                '${CareFormat.number(row['value'])}${row['secondary'] == null ? '' : ' / ${CareFormat.number(row['secondary'])}'}',
+                style: Theme.of(context).textTheme.headlineMedium,
+              ),
+              Padding(
+                padding: const EdgeInsets.only(bottom: 4),
+                child: Text(row['unit']),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Text(
+            CareFormat.stamp(row['measured_at']),
+            style: Theme.of(context).textTheme.bodySmall,
+          ),
+        ],
+      ),
+    );
   }
 
   @override
   Widget build(BuildContext context) => Scaffold(
     appBar: AppBar(
       title: const Text('Health readings'),
-      actions: [IconButton(onPressed: _load, icon: const Icon(Icons.refresh))],
-    ),
-    floatingActionButton: FloatingActionButton.extended(
-      onPressed: _add,
-      label: const Text('Add reading'),
-      icon: const Icon(Icons.add),
-    ),
-    body: ListView(
-      padding: const EdgeInsets.fromLTRB(24, 24, 24, 100),
-      children: [
-        const Text(
-          'Record measured values. CareLink does not diagnose or recommend treatment.',
+      actions: [
+        IconButton(
+          tooltip: 'Refresh readings',
+          onPressed: _busy ? null : _load,
+          icon: const Icon(Icons.refresh_rounded),
         ),
-        if (_updated != null) Text('Last downloaded: $_updated'),
-        if (_busy) const LinearProgressIndicator(),
-        if (_error != null) Text(_error!),
-        for (final r in _rows)
-          Card(
-            child: ListTile(
-              title: Text(
-                '${r['value']}${r['secondary'] == null ? '' : ' / ${r['secondary']}'} ${r['unit']}',
-              ),
-              subtitle: Text('${r['kind']} • ${r['measured_at']}'),
-            ),
-          ),
-        if (!_busy && _rows.isEmpty) const Text('No readings recorded.'),
       ],
     ),
-  );
-}
-
-class ReadingForm extends StatefulWidget {
-  const ReadingForm({super.key, required this.api});
-  final ApiClient api;
-  @override
-  State<ReadingForm> createState() => _ReadingFormState();
-}
-
-class _ReadingFormState extends State<ReadingForm> {
-  final _value = TextEditingController(), _second = TextEditingController();
-  String _kind = 'blood_pressure', _unit = 'mmHg';
-  DateTime _at = DateTime.now();
-  bool _busy = false;
-  String? _error;
-  @override
-  void dispose() {
-    _value.dispose();
-    _second.dispose();
-    super.dispose();
-  }
-
-  Future<void> _save() async {
-    setState(() {
-      _busy = true;
-      _error = null;
-    });
-    try {
-      await widget.api.call('POST', '/readings', {
-        'kind': _kind,
-        'value': double.tryParse(_value.text),
-        'secondary': _kind == 'blood_pressure'
-            ? double.tryParse(_second.text)
-            : null,
-        'unit': _unit,
-        'measured_at': _at.toUtc().toIso8601String(),
-      });
-      if (mounted) Navigator.pop(context, true);
-    } catch (e) {
-      if (mounted) setState(() => _error = e.toString());
-    } finally {
-      if (mounted) setState(() => _busy = false);
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) => Scaffold(
-    appBar: AppBar(title: const Text('Add reading')),
-    body: ListView(
-      padding: const EdgeInsets.all(24),
-      children: [
-        DropdownButtonFormField<String>(
-          initialValue: _kind,
-          items: const [
-            DropdownMenuItem(
-              value: 'blood_pressure',
-              child: Text('Blood pressure'),
-            ),
-            DropdownMenuItem(value: 'glucose', child: Text('Glucose')),
+    body: RefreshIndicator(
+      onRefresh: _load,
+      child: ListView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: const EdgeInsets.fromLTRB(20, 20, 20, 110),
+        children: [
+          Text(
+            'Your readings, together',
+            style: Theme.of(context).textTheme.headlineMedium,
+          ),
+          const SizedBox(height: 10),
+          const Text(
+            'Keep the measurements you enter in one easy-to-find place.',
+          ),
+          const SizedBox(height: 18),
+          CareSyncLine(updated: _updated, busy: _busy),
+          const SizedBox(height: 22),
+          if (_busy) const LinearProgressIndicator(),
+          if (_error != null) ...[
+            CareNotice(_error!, error: true),
+            const SizedBox(height: 16),
           ],
-          onChanged: (v) => setState(() {
-            _kind = v!;
-            _unit = v == 'glucose' ? 'mg/dL' : 'mmHg';
-          }),
-        ),
-        TextField(
-          controller: _value,
-          keyboardType: const TextInputType.numberWithOptions(decimal: true),
-          decoration: InputDecoration(
-            labelText: _kind == 'blood_pressure'
-                ? 'Systolic'
-                : 'Measured glucose',
-          ),
-        ),
-        if (_kind == 'blood_pressure')
-          TextField(
-            controller: _second,
-            keyboardType: TextInputType.number,
-            decoration: const InputDecoration(labelText: 'Diastolic'),
-          ),
-        if (_kind == 'glucose')
-          DropdownButton<String>(
-            value: _unit,
-            items: const [
-              DropdownMenuItem(value: 'mg/dL', child: Text('mg/dL')),
-              DropdownMenuItem(value: 'mmol/L', child: Text('mmol/L')),
-            ],
-            onChanged: (v) => setState(() => _unit = v!),
-          ),
-        TextButton(
-          onPressed: () async {
-            final d = await showDatePicker(
-              context: context,
-              firstDate: DateTime.now().subtract(const Duration(days: 365)),
-              lastDate: DateTime.now(),
-              initialDate: _at,
-            );
-            if (d == null || !context.mounted) return;
-            final t = await showTimePicker(
-              context: context,
-              initialTime: TimeOfDay.fromDateTime(_at),
-            );
-            if (t != null && mounted) {
-              setState(
-                () => _at = DateTime(d.year, d.month, d.day, t.hour, t.minute),
-              );
-            }
-          },
-          child: Text('Measured ${_at.toString().substring(0, 16)}'),
-        ),
-        if (_error != null) Text(_error!),
-        FilledButton(
-          onPressed: _busy ? null : _save,
-          child: Text(_busy ? 'Saving…' : 'Save reading online'),
-        ),
-      ],
+          if (!_busy && _rows.isEmpty && _error == null)
+            CareEmptyState(
+              icon: Icons.monitor_heart_outlined,
+              title: 'A clearer picture starts here',
+              message: 'Save a reading when you have one. The date, time and unit stay with your record.',
+              actionLabel: 'Add a reading',
+              onAction: _add,
+            ),
+          for (final row in _rows) ...[
+            _reading(row),
+            const SizedBox(height: 14),
+          ],
+          if (_rows.isNotEmpty) ...[
+            const SizedBox(height: 6),
+            const CareNotice(
+              'These are the values you recorded. Follow your healthcare professional’s advice about what they mean.',
+            ),
+          ],
+        ],
+      ),
     ),
+    floatingActionButton: _rows.isEmpty
+        ? null
+        : FloatingActionButton.extended(
+            onPressed: _add,
+            icon: const Icon(Icons.add_rounded),
+            label: const Text('Add reading'),
+          ),
   );
 }

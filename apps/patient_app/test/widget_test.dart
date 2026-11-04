@@ -75,10 +75,14 @@ Future<void> press(WidgetTester tester, String label) async {
       ? find.text(label).first
       : find.text(label);
 
-  await Scrollable.ensureVisible(
-    tester.element(target),
-    alignment: 0.5,
-  );
+  if (target.evaluate().isEmpty) {
+    await tester.scrollUntilVisible(
+      target,
+      250,
+      scrollable: find.byType(Scrollable).first,
+    );
+  }
+  await Scrollable.ensureVisible(tester.element(target), alignment: 0.5);
 
   await tester.pumpAndSettle();
   await tester.tap(target);

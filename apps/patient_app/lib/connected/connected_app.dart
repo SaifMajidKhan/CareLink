@@ -8,6 +8,7 @@ import 'data/api_client.dart';
 import 'data/account_store.dart';
 import 'screens/sign_in_screen.dart';
 import 'screens/dashboard.dart';
+import 'screens/guest_home_screen.dart';
 
 class ConnectedCareLinkApp extends StatefulWidget {
   const ConnectedCareLinkApp({super.key});
@@ -51,6 +52,27 @@ class _ConnectedCareLinkAppState extends State<ConnectedCareLinkApp> {
     if (mounted) setState(() => _setSession(data));
   }
 
+  Future<void> _profileChanged(Map<String, dynamic> user) async {
+    if (_session == null || user['id'] != _store?.userId) return;
+    final updated = {..._session!, 'user': user};
+    await _secure.write(key: 'carelink_session', value: jsonEncode(updated));
+    if (mounted) setState(() => _session = updated);
+  }
+
+  Future<void> _authenticate(BuildContext pageContext, bool register) async {
+    await Navigator.of(pageContext).push(
+      MaterialPageRoute<void>(
+        builder: (loginContext) => SignInScreen(
+          initialRegister: register,
+          onSignedIn: (server, data) async {
+            await _signedIn(server, data);
+            if (loginContext.mounted) Navigator.of(loginContext).pop();
+          },
+        ),
+      ),
+    );
+  }
+
   Future<void> _logout() async {
     await _secure.delete(key: 'carelink_session');
     await _store?.close();
@@ -67,6 +89,7 @@ class _ConnectedCareLinkAppState extends State<ConnectedCareLinkApp> {
       MaterialPageRoute<void>(
         builder: (loginContext) => SignInScreen(
           initialServer: _session!['server'],
+          allowRegistration: false,
           onSignedIn: (server, data) async {
             if (server != _session!['server'] ||
                 data['user']['id'] != _store!.userId) {
@@ -98,13 +121,19 @@ class _ConnectedCareLinkAppState extends State<ConnectedCareLinkApp> {
         : _error != null
         ? Scaffold(body: Center(child: Text(_error!)))
         : _session == null
-        ? SignInScreen(onSignedIn: _signedIn)
+        ? Builder(
+            builder: (pageContext) => GuestHomeScreen(
+              onAuthenticate: (register) =>
+                  _authenticate(pageContext, register),
+            ),
+          )
         : Dashboard(
             key: ValueKey(_store!.scope),
             store: _store!,
             user: Map<String, dynamic>.from(_session!['user']),
             onLogout: _logout,
             onRenew: _renew,
+            onProfileChanged: _profileChanged,
           ),
   );
 }

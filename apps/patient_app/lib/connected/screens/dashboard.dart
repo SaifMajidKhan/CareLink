@@ -2,14 +2,25 @@ import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
-import 'package:qr_flutter/qr_flutter.dart';
 
 import '../data/account_store.dart';
+import '../data/api_client.dart';
 import '../data/reminders.dart';
 import 'report_form.dart';
 import 'schedule_form.dart';
 import 'readings_screen.dart';
 import 'care_screen.dart';
+import 'care_identity_screen.dart';
+import 'edit_profile_screen.dart';
+import 'manage_schedules_screen.dart';
+import '../views/today_view.dart';
+import '../views/history_view.dart';
+import '../views/profile_view.dart';
+import '../widgets/carelink_brand.dart';
+import '../widgets/care_notice.dart';
+import '../widgets/connected_dose_card.dart';
+import '../../core/theme/app_theme.dart';
+import '../utils/care_format.dart';
 
 class Dashboard extends StatefulWidget {
   const Dashboard({
@@ -18,11 +29,13 @@ class Dashboard extends StatefulWidget {
     required this.user,
     required this.onLogout,
     required this.onRenew,
+    this.onProfileChanged,
   });
   final AccountStore store;
   final Map<String, dynamic> user;
   final Future<void> Function() onLogout;
   final Future<void> Function(BuildContext) onRenew;
+  final Future<void> Function(Map<String, dynamic>)? onProfileChanged;
   @override
   State<Dashboard> createState() => _DashboardState();
 }
@@ -30,7 +43,8 @@ class Dashboard extends StatefulWidget {
 class _DashboardState extends State<Dashboard> with WidgetsBindingObserver {
   final reminders = Reminders();
   List<Map<String, dynamic>> _doses = [];
-  int _tab = 0;
+  int _tab = 0, _pendingCount = 0;
+  late Map<String, dynamic> _profileData;
   bool _busy = false, _remindersEnabled = false;
   String? _message, _updated;
   DateTime _historyDate = DateTime.now();
@@ -39,6 +53,7 @@ class _DashboardState extends State<Dashboard> with WidgetsBindingObserver {
   @override
   void initState() {
     super.initState();
+    _profileData = Map<String, dynamic>.from(widget.user);
     WidgetsBinding.instance.addObserver(this);
     reminders.onAction = (payload, action) async {
       final dose = Map<String, dynamic>.from(jsonDecode(payload));
@@ -71,6 +86,14 @@ class _DashboardState extends State<Dashboard> with WidgetsBindingObserver {
       await reminders.handleLaunch();
     } catch (e) {
       if (mounted) setState(() => _message = 'Could not restore reminders: $e');
+    }
+  }
+
+  @override
+  void didUpdateWidget(covariant Dashboard oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.user != widget.user) {
+      _profileData = Map<String, dynamic>.from(widget.user);
     }
   }
 
@@ -134,6 +157,7 @@ class _DashboardState extends State<Dashboard> with WidgetsBindingObserver {
       if (mounted) {
         setState(() {
           _doses = rows;
+          _pendingCount = pending.length;
           _updated = cached?['updated'];
           _message = message;
         });
@@ -194,62 +218,24 @@ class _DashboardState extends State<Dashboard> with WidgetsBindingObserver {
   }
 
   Future<void> _editProfile() async {
-    final name = TextEditingController(text: widget.user['name']);
-    String condition = widget.user['condition'] ?? '';
-    final save = await showDialog<bool>(
-      context: context,
-      builder: (c) => StatefulBuilder(
-        builder: (c, change) => AlertDialog(
-          title: const Text('Edit profile'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextField(
-                controller: name,
-                decoration: const InputDecoration(labelText: 'Name'),
-              ),
-              DropdownButton<String>(
-                value: condition,
-                items: const [
-                  DropdownMenuItem(value: '', child: Text('Not specified')),
-                  DropdownMenuItem(
-                    value: 'hypertension',
-                    child: Text('Hypertension'),
-                  ),
-                  DropdownMenuItem(value: 'diabetes', child: Text('Diabetes')),
-                  DropdownMenuItem(value: 'both', child: Text('Both')),
-                ],
-                onChanged: (v) => change(() => condition = v!),
-              ),
-            ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(c, false),
-              child: const Text('Cancel'),
-            ),
-            FilledButton(
-              onPressed: () => Navigator.pop(c, true),
-              child: const Text('Save online'),
-            ),
-          ],
-        ),
+    final result = await Navigator.push<Map<String, dynamic>>(
+      context,
+      MaterialPageRoute(
+        builder: (_) =>
+            EditProfileScreen(api: store.api, profile: _profileData),
       ),
     );
-    if (save == true) {
-      try {
-        final result = await store.api.call('PUT', '/me', {
-          'name': name.text.trim(),
-          'condition': condition,
-        });
-        if (mounted) {
-          setState(() => widget.user.addAll(Map<String, dynamic>.from(result)));
-        }
-      } catch (e) {
-        if (mounted) setState(() => _message = e.toString());
+    if (result == null || !mounted) return;
+    setState(() => _profileData = result);
+    try {
+      await widget.onProfileChanged?.call(result);
+    } catch (_) {
+      if (mounted) {
+        setState(
+          () => _message = 'Your profile was saved online. This phone could not remember the updated details yet.',
+        );
       }
     }
-    name.dispose();
   }
 
   Future<void> _logout() async {
@@ -285,6 +271,11 @@ class _DashboardState extends State<Dashboard> with WidgetsBindingObserver {
     if (yes != true) return;
     try {
       await store.api.call('POST', '/auth/logout');
+    } on ApiFailure {
+      // Remote revocation is best-effort; confirmed local sign-out must work offline.
+      // The pending-report guard above still protects unsent records.
+    }
+    try {
       await reminders.cancelAll();
       await store.clear();
       await widget.onLogout();
@@ -321,317 +312,224 @@ class _DashboardState extends State<Dashboard> with WidgetsBindingObserver {
 
   String _describe(dynamic report) => report == null
       ? 'No report available'
-      : '${report['outcome']}\nEntered: ${report['recorded_at']}${report['taken_at'] == null ? '' : '\nTaken: ${report['taken_at']}'}';
+      : '${report['outcome']}\nRecorded: ${CareFormat.stamp(report['recorded_at'])}${report['taken_at'] == null ? '' : '\nTaken: ${CareFormat.stamp(report['taken_at'])}'}';
 
-  Widget _card(Map<String, dynamic> d) {
-    final pending = d['pending'] == true, report = d['report'];
-    final status = pending
-        ? '${d['status']} • upload pending'
-        : d['status'] == 'taken'
-        ? 'Reported taken'
-        : d['status'] == 'skipped'
-        ? 'Reported skipped'
-        : d['status'] == 'upcoming'
-        ? 'Upcoming'
-        : 'Not confirmed';
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Text(
-              '${d['time']} • ${d['timezone']}',
-              style: Theme.of(context).textTheme.labelLarge,
-            ),
-            Text(d['name'], style: Theme.of(context).textTheme.titleLarge),
-            Text(d['instructions']),
-            const SizedBox(height: 12),
-            Align(
-              alignment: Alignment.centerLeft,
-              child: Chip(label: Text(status)),
-            ),
-            if (report != null)
-              Text(
-                'Entered: ${report['recorded_at']}${report['taken_at'] == null ? '' : '\nTaken: ${report['taken_at']}'}${report['approximate'] == true ? ' (approximate)' : ''}',
-              ),
-            if (pending) const Text('Saved on this phone—waiting to upload'),
-            if (d['upload_error'] != null)
-              TextButton(
-                onPressed: () => _conflict(d),
-                child: const Text('Review upload problem'),
-              ),
-            if (!pending &&
-                DateTime.parse(d['scheduled_at']).isBefore(DateTime.now()))
-              FilledButton(
-                onPressed: () => _record(d),
-                child: Text(report == null ? 'Record dose' : 'Correct report'),
-              ),
-            if (report == null && _remindersEnabled)
-              TextButton(
-                onPressed: () async {
-                  try {
-                    await reminders.snooze(d);
-                    if (mounted) {
-                      setState(
-                        () => _message = 'Reminder snoozed for 10 minutes. Your schedule is unchanged.',
-                      );
-                    }
-                  } catch (e) {
-                    if (mounted) setState(() => _message = e.toString());
-                  }
-                },
-                child: const Text('Remind me in 10 minutes'),
-              ),
-          ],
+  Future<void> _identity() async {
+    await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => CareIdentityScreen(
+          patientId: store.userId,
+          name: '${_profileData['name']}',
         ),
       ),
     );
   }
 
-  Widget _profile() => ListView(
-    padding: const EdgeInsets.all(24),
-    children: [
-      const CircleAvatar(radius: 32, child: Icon(Icons.person, size: 36)),
-      const SizedBox(height: 16),
-      Text(
-        widget.user['name'],
-        style: Theme.of(context).textTheme.headlineMedium,
-      ),
-      Text('Patient • ${widget.user['condition']}'),
-      OutlinedButton(
-        onPressed: _editProfile,
-        child: const Text('Edit profile'),
-      ),
-      const SizedBox(height: 16),
-      const Text('Your Patient ID'),
-      SelectableText(store.userId),
-      Center(
-        child: QrImageView(
-          data: 'carelink:patient:${store.userId}',
-          size: 210,
-          backgroundColor: Colors.white,
+  Future<void> _care() async {
+    await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => CareScreen(
+          api: store.api,
+          patientId: store.userId,
+          name: '${_profileData['name']}',
         ),
       ),
-      const Text(
-        'This QR starts a connection request. You decide who can see your records.',
-      ),
-      FilledButton.icon(
-        onPressed: () => Navigator.push(
-          context,
-          MaterialPageRoute(builder: (_) => CareScreen(api: store.api)),
-        ),
-        icon: const Icon(Icons.people_outline),
-        label: const Text('My caregivers & requests'),
-      ),
-      OutlinedButton.icon(
-        onPressed: () => Navigator.push(
-          context,
-          MaterialPageRoute(builder: (_) => ReadingsScreen(store: store)),
-        ),
-        icon: const Icon(Icons.monitor_heart_outlined),
-        label: const Text('Health readings'),
-      ),
-      OutlinedButton.icon(
-        onPressed: _addSchedule,
-        icon: const Icon(Icons.medication_outlined),
-        label: const Text('Add medication schedule'),
-      ),
-      OutlinedButton(
-        onPressed: _manageSchedules,
-        child: const Text('Manage schedules'),
-      ),
-      OutlinedButton(
-        onPressed: _enable,
-        child: const Text('Enable / refresh reminders'),
-      ),
-      const Text(
-        'FYP demonstration. Fictional data only. Reports are self-reported. No diagnostic or treatment advice.',
-      ),
-      TextButton(onPressed: _logout, child: const Text('Sign out')),
-      TextButton(
-        onPressed: () => widget.onRenew(context),
-        child: const Text('Renew sign-in without losing pending reports'),
-      ),
-    ],
-  );
+    );
+  }
+
+  Future<void> _readings() async {
+    await Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => ReadingsScreen(store: store)),
+    );
+  }
+
   Future<void> _manageSchedules() async {
+    await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) =>
+            ManageSchedulesScreen(api: store.api, patientId: store.userId),
+      ),
+    );
+    if (mounted) await _refresh();
+  }
+
+  Future<void> _snooze(Map<String, dynamic> dose) async {
     try {
-      final rows = await store.api.call(
-        'GET',
-        '/patients/${store.userId}/schedules',
-      ) as List;
-      if (!mounted) return;
-      await showDialog<void>(
-        context: context,
-        builder: (c) => AlertDialog(
-          title: const Text('Medication schedules'),
-          content: SizedBox(
-            width: 400,
-            child: SingleChildScrollView(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const Text(
-                    'To change a schedule, end its future occurrences and create a replacement. Historical expectations stay unchanged.',
-                  ),
-                  for (final r in rows)
-                    ListTile(
-                      title: Text(r['name']),
-                      subtitle: Text(
-                        '${r['times']}\n${r['start']} → ${r['end'] ?? 'ongoing'}',
-                      ),
-                      trailing: TextButton(
-                        onPressed: () async {
-                          final picked = await showDatePicker(
-                            context: context,
-                            initialDate: DateTime.now(),
-                            firstDate: DateTime.now(),
-                            lastDate: DateTime.now().add(
-                              const Duration(days: 730),
-                            ),
-                          );
-                          if (picked == null) return;
-                          try {
-                            await store.api.call(
-                              'POST',
-                              '/schedules/${r['id']}/stop',
-                              {'end': dayKey(picked)},
-                            );
-                            if (c.mounted) Navigator.pop(c);
-                            await _refresh();
-                          } catch (e) {
-                            if (mounted) {
-                              setState(() => _message = e.toString());
-                            }
-                          }
-                        },
-                        child: const Text('End after…'),
-                      ),
-                    ),
-                ],
-              ),
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(c),
-              child: const Text('Close'),
-            ),
-          ],
-        ),
-      );
-    } catch (e) {
-      if (mounted) setState(() => _message = e.toString());
+      await reminders.snooze(dose);
+      if (mounted) {
+        setState(
+          () => _message =
+              'Reminder snoozed for 10 minutes. Your schedule is unchanged.',
+        );
+      }
+    } catch (error) {
+      if (mounted) setState(() => _message = error.toString());
     }
   }
+
+  Future<void> _pickHistoryDate() async {
+    final today = DateUtils.dateOnly(DateTime.now());
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: _historyDate,
+      firstDate: today.subtract(const Duration(days: 30)),
+      lastDate: today,
+      helpText: 'Choose a day',
+    );
+    if (picked != null && mounted) setState(() => _historyDate = picked);
+  }
+
+  Widget _card(Map<String, dynamic> dose) => ConnectedDoseCard(
+    dose: dose,
+    onRecord: () => _record(dose),
+    onConflict: () => _conflict(dose),
+    onSnooze: _remindersEnabled ? () => _snooze(dose) : null,
+  );
 
   @override
   Widget build(BuildContext context) {
     final day = dayKey(_tab == 1 ? _historyDate : DateTime.now());
     final visible = _doses
         .where(
-          (d) => _tab == 0
-              ? dayKey(DateTime.parse(d['scheduled_at']).toLocal()) == day
-              : d['day'] == day,
+          (dose) => _tab == 0
+              ? dayKey(DateTime.parse(dose['scheduled_at']).toLocal()) == day
+              : dose['day'] == day,
         )
         .toList();
+    final view = switch (_tab) {
+      1 => HistoryView(
+        date: _historyDate,
+        doses: visible,
+        doseBuilder: _card,
+        updated: _updated,
+        busy: _busy,
+        onCalendar: _pickHistoryDate,
+        onDate: (date) => setState(() => _historyDate = date),
+        onToday: () => setState(() => _tab = 0),
+      ),
+      2 => ProfileView(
+        user: _profileData,
+        patientId: store.userId,
+        updated: _updated,
+        pending: _pendingCount,
+        remindersEnabled: _remindersEnabled,
+        onEdit: _editProfile,
+        onIdentity: _identity,
+        onCare: _care,
+        onReadings: _readings,
+        onAdd: _addSchedule,
+        onManage: _manageSchedules,
+        onReminders: _enable,
+        onLogout: _logout,
+        onRenew: () => widget.onRenew(context),
+      ),
+      _ => TodayView(
+        unavailable: _updated == null && _message != null,
+        onRetry: _refresh,
+        name: '${_profileData['name']}',
+        doses: visible,
+        doseBuilder: _card,
+        updated: _updated,
+        pending: _pendingCount,
+        busy: _busy,
+        onAdd: _addSchedule,
+        onReadings: _readings,
+        onCare: _care,
+      ),
+    };
     return Scaffold(
       appBar: AppBar(
-        title: Text(['CareLink', 'Dose history', 'Your profile'][_tab]),
+        title: const CareLinkBrand(compact: true),
+        toolbarHeight: 72,
         actions: [
-          IconButton(
-            onPressed: _busy ? null : _refresh,
-            icon: const Icon(Icons.sync),
+          Container(
+            margin: const EdgeInsets.fromLTRB(0, 12, 16, 12),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(15),
+              border: Border.all(color: AppTheme.border),
+            ),
+            child: IconButton(
+              tooltip: 'Refresh updates',
+              onPressed: _busy ? null : _refresh,
+              icon: const Icon(Icons.sync_rounded, color: AppTheme.teal),
+            ),
           ),
         ],
       ),
       body: Column(
         children: [
-          if (_busy) const LinearProgressIndicator(),
+          if (_busy) const LinearProgressIndicator(minHeight: 2),
           if (_message != null)
-            MaterialBanner(
-              content: Text(_message!),
-              actions: [
-                TextButton(
-                  onPressed: () => setState(() => _message = null),
-                  child: const Text('Dismiss'),
-                ),
-              ],
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 8, 20, 0),
+              child: CareNotice(
+                _message!,
+                warning: true,
+                onDismiss: () => setState(() => _message = null),
+              ),
             ),
           Expanded(
-            child: _tab == 2
-                ? _profile()
-                : RefreshIndicator(
-                    onRefresh: _refresh,
-                    child: ListView(
-                      padding: const EdgeInsets.all(24),
-                      children: [
-                        if (_tab == 0) ...[
-                          Text(
-                            'Hello, ${widget.user['name']}',
-                            style: Theme.of(context).textTheme.headlineMedium,
-                          ),
-                          const Text('Your day, one dose at a time.'),
-                          const SizedBox(height: 16),
-                        ],
-                        if (_tab == 1)
-                          TextButton.icon(
-                            onPressed: () async {
-                              final d = await showDatePicker(
-                                context: context,
-                                initialDate: _historyDate,
-                                firstDate: DateTime.now().subtract(
-                                  const Duration(days: 30),
-                                ),
-                                lastDate: DateTime.now(),
-                              );
-                              if (d != null && mounted) {
-                                setState(() => _historyDate = d);
-                              }
-                            },
-                            icon: const Icon(Icons.calendar_month),
-                            label: Text(day),
-                          ),
-                        if (_updated != null)
-                          Text(
-                            'Last downloaded: $_updated',
-                            style: Theme.of(context).textTheme.bodySmall,
-                          ),
-                        if (visible.isEmpty) ...[
-                          const SizedBox(height: 32),
-                          const Text('No saved doses for this day.'),
-                          if (_tab == 0)
-                            FilledButton(
-                              onPressed: _addSchedule,
-                              child: const Text('Add your first schedule'),
-                            ),
-                        ],
-                        for (final d in visible) _card(d),
-                        const SizedBox(height: 16),
-                        const Text(
-                          'No response stays Not confirmed. It does not mean a dose was skipped.',
-                        ),
-                      ],
-                    ),
-                  ),
+            child: RefreshIndicator(
+              onRefresh: _refresh,
+              child: AnimatedSwitcher(
+                duration: Duration(
+                  milliseconds: MediaQuery.disableAnimationsOf(context)
+                      ? 0
+                      : 180,
+                ),
+                child: KeyedSubtree(key: ValueKey(_tab), child: view),
+              ),
+            ),
           ),
         ],
       ),
-      bottomNavigationBar: NavigationBar(
-        selectedIndex: _tab,
-        onDestinationSelected: (i) => setState(() => _tab = i),
-        destinations: const [
-          NavigationDestination(
-            icon: Icon(Icons.home_outlined),
-            label: 'Today',
+      bottomNavigationBar: SafeArea(
+        top: false,
+        minimum: const EdgeInsets.fromLTRB(16, 6, 16, 12),
+        child: DecoratedBox(
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(24),
+            border: Border.all(color: AppTheme.border),
+            boxShadow: const [
+              BoxShadow(
+                color: Color(0x080F172A),
+                blurRadius: 20,
+                offset: Offset(0, 6),
+              ),
+            ],
           ),
-          NavigationDestination(icon: Icon(Icons.history), label: 'History'),
-          NavigationDestination(
-            icon: Icon(Icons.person_outline),
-            label: 'Profile',
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(24),
+            child: NavigationBar(
+              height: MediaQuery.textScalerOf(context).scale(14) > 19 ? 96 : 76,
+              selectedIndex: _tab,
+              onDestinationSelected: (index) => setState(() => _tab = index),
+              destinations: const [
+                NavigationDestination(
+                  icon: Icon(Icons.home_outlined),
+                  selectedIcon: Icon(Icons.home_rounded),
+                  label: 'Today',
+                ),
+                NavigationDestination(
+                  icon: Icon(Icons.history_outlined),
+                  selectedIcon: Icon(Icons.history_rounded),
+                  label: 'History',
+                ),
+                NavigationDestination(
+                  icon: Icon(Icons.person_outline_rounded),
+                  selectedIcon: Icon(Icons.person_rounded),
+                  label: 'Profile',
+                ),
+              ],
+            ),
           ),
-        ],
+        ),
       ),
     );
   }
