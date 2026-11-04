@@ -1,0 +1,18 @@
+# CareLink API deployment for a fictional-data FYP demonstration.
+# Create the PostgreSQL database separately and enter DATABASE_URL in Render.
+services:
+  - type: web
+    name: carelink-api
+    runtime: python
+    plan: free
+    rootDir: backend
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /health
+    envVars:
+      - key: DATABASE_URL
+        sync: false
+      - key: DATABASE_URL_UNPOOLED
+        sync: false
+      - key: CORS_ORIGINS
+        sync: false
