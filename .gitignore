@@ -1,0 +1,10 @@
+# Credentials downloaded by Neon and local backend settings.
+.env
+.env.*
+!.env.example
+!.env.template
+.neon
+.mcp.json
+
+# Root-level tooling dependencies, if installed by the Neon CLI.
+/node_modules/
