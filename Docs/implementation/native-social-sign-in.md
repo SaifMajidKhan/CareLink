@@ -121,6 +121,10 @@ package rename creates a new app sandbox regardless of cipher migration.
 - Backend tests: **49 passed**, including signed native Google tokens, bad audience/issuer/expiry/signature rejection, no client-profile trust, Meta token inspection and existing browser/medication workflows.
 - Root `npm run build`: backend configuration and Python compilation passed.
 - Android debug APK built successfully for `com.carelinkteam.patient` after enabling AGP resource generation for SDK settings. Real native-picker/account completion still needs an Android walkthrough.
+- APK package/activity were inspected, the v2 APK signature verified, and the certificate SHA-1 matched the value registered in Google/Meta. The professional package starts on the emulator; the old starter package was kept.
+- The final APK excludes the unused advertising-ID and Privacy Sandbox advertising permissions. Meta's automatic app-event and advertiser-ID collection flags remain disabled.
+- The native backend was pushed in `2afe78b`, with the matching app in `d9364fc`. The deployed `/auth/providers` reports both `native_available` flags as true. Both native credential endpoints reject deliberately invalid credentials with HTTP 401. This does not prove successful real-account login.
+- Google Play services are installed on the emulator; Facebook and Facebook Lite are not installed. Native Facebook app switching therefore cannot be demonstrated there without a Facebook app; the SDK can use its documented browser fallback.
 
 Real Google/Meta account completion must still be confirmed on Android. Do not
 claim a successful provider login from configuration flags, test fixtures or a

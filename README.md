@@ -14,7 +14,7 @@ BSCS Final Year Project: medication reporting and chronic-care coordination for 
 ### Patient app
 
 - Patient sign-up/sign-in, editable name and chronic condition, Patient ID and QR display.
-- Intended Android release ID: `com.carelinkteam.patient`. Native Google account selection and the Facebook Android SDK replace the earlier browser-handoff client. The SDK update passes 65 app tests and 49 backend tests; native endpoint deployment and real account walkthroughs are being completed.
+- Intended Android release ID: `com.carelinkteam.patient`. Native Google account selection and the Facebook Android SDK replace the earlier browser-handoff client. The update passes 65 app tests and 49 backend tests; the native endpoints are deployed and reject invalid credentials. Real account walkthroughs still need confirmation.
 - Guest welcome with account prompts for private features, hosted-server configuration outside the patient UI, and clear inline registration errors.
 - Redesigned Today, History and Profile with readable timestamps, clear empty states, grouped settings, a separate QR/Patient ID page and consistent medicine/report/reading/caregiver forms. Small-screen checks cover larger text; clinical and physical-device usability acceptance remains open.
 - Google/Facebook browser sign-in client, backend identity verification and setup guide. Both provider settings are detected by the deployed backend, and start/cancellation checks pass. Real-account sign-in and session restoration still need Android walkthrough confirmation.
