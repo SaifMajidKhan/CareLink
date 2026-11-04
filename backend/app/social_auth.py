@@ -95,19 +95,72 @@ def authorization_url(config, state, nonce, verifier):
     return endpoint + '?' + urlencode(params)
 
 
-def verify_google_token(token, client_id, nonce):
+def _google_claims(token, client_id):
     transport = GoogleRequest()
     def bounded_request(*args, **kwargs):
         kwargs['timeout'] = 15
         return transport(*args, **kwargs)
     # The official library verifies signature, issuer, audience and expiry.
     claims = google_id_token.verify_oauth2_token(token, bounded_request, audience=client_id)
+    if (claims.get('email_verified') is not True
+            or not isinstance(claims.get('sub'), str)
+            or not claims['sub']
+            or not isinstance(claims.get('email'), str)
+            or not claims['email']):
+        raise ValueError('Unverified Google identity')
+    return claims
+
+
+def _google_identity(claims):
+    return {'subject': claims['sub'], 'email': claims['email'], 'name': claims.get('name', '')}
+
+
+def verify_google_token(token, client_id, nonce):
+    claims = _google_claims(token, client_id)
     if (not isinstance(claims.get('nonce'), str)
             or not hmac.compare_digest(claims['nonce'], nonce)
             or (claims.get('azp') is not None and claims['azp'] != client_id)
             or claims.get('email_verified') is not True):
         raise ValueError('Unverified Google identity')
-    return {'subject': claims['sub'], 'email': claims['email'], 'name': claims.get('name', '')}
+    return _google_identity(claims)
+
+
+def verify_google_native_token(token, client_id):
+    # Native SDK ID tokens are credentials sent directly over HTTPS. Verify the
+    # server audience with Google's library; the Android authorized party can
+    # differ from the Web client ID. Browser nonce/azp checks stay above.
+    return _google_identity(_google_claims(token, client_id))
+
+
+async def _facebook_identity(client, config, token):
+    root = f'https://graph.facebook.com/{config.version}'
+    inspected = await client.get(root + '/debug_token',
+        params={'input_token': token},
+        headers={'Authorization': f'Bearer {config.client_id}|{config.secret}'})
+    inspected.raise_for_status()
+    checked = inspected.json()['data']
+    if (checked.get('is_valid') is not True
+            or str(checked.get('app_id')) != config.client_id
+            or checked.get('type') != 'USER'
+            or not checked.get('user_id')
+            or checked.get('expires_at', 0) <= time.time()
+            or (checked.get('data_access_expires_at') and checked['data_access_expires_at'] <= time.time())):
+        raise ValueError('Unverified Facebook identity')
+    proof = hmac.new(config.secret.encode(), token.encode(), hashlib.sha256).hexdigest()
+    profile = await client.get(root + '/me',
+        params={'fields': 'id,name,email', 'appsecret_proof': proof},
+        headers={'Authorization': f'Bearer {token}'})
+    profile.raise_for_status()
+    result = profile.json()
+    if str(result.get('id')) != str(checked['user_id']):
+        raise ValueError('Facebook identity mismatch')
+    return {'subject': str(result['id']), 'name': result.get('name', ''),
+            'email': result.get('email', '')}
+
+
+async def verify_facebook_native_token(config, token):
+    async with httpx.AsyncClient(timeout=15, follow_redirects=False) as client:
+        return await _facebook_identity(client, config, token)
 
 
 async def fetch_identity(config, code, flow):
@@ -127,28 +180,7 @@ async def fetch_identity(config, code, flow):
         response = await client.get(root + '/oauth/access_token', params=fields)
         response.raise_for_status()
         token = response.json()['access_token']
-        inspected = await client.get(root + '/debug_token',
-            params={'input_token': token},
-            headers={'Authorization': f'Bearer {config.client_id}|{config.secret}'})
-        inspected.raise_for_status()
-        checked = inspected.json()['data']
-        if (checked.get('is_valid') is not True
-                or str(checked.get('app_id')) != config.client_id
-                or checked.get('type') != 'USER'
-                or not checked.get('user_id')
-                or checked.get('expires_at', 0) <= time.time()
-                or (checked.get('data_access_expires_at') and checked['data_access_expires_at'] <= time.time())):
-            raise ValueError('Unverified Facebook identity')
-        proof = hmac.new(config.secret.encode(), token.encode(), hashlib.sha256).hexdigest()
-        profile = await client.get(root + '/me',
-            params={'fields': 'id,name,email', 'appsecret_proof': proof},
-            headers={'Authorization': f'Bearer {token}'})
-        profile.raise_for_status()
-        result = profile.json()
-        if str(result.get('id')) != str(checked['user_id']):
-            raise ValueError('Facebook identity mismatch')
-        return {'subject': str(result['id']), 'name': result.get('name', ''),
-                'email': result.get('email', '')}
+        return await _facebook_identity(client, config, token)
 
 
 def patient_for_identity(session, provider, identity):
@@ -195,7 +227,8 @@ def register_social_routes(app, sessions, limiter, login_result):
 
     @router.get('/providers')
     def providers():
-        return {name: {'available': provider_settings(name).available}
+        return {name: {'available': provider_settings(name).available,
+                       'native_available': provider_settings(name).available}
                 for name in ('google', 'facebook')}
 
     @router.post('/social/{provider}/start')

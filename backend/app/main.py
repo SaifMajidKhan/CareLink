@@ -11,6 +11,7 @@ from .schemas import (Registration, Credentials, Profile, Schedule, StopSchedule
                       DoseReport, Reading, RequestConnection, Decision, Note, AccountStatus, Assignment)
 from .security import password_hash, verify_password, digest, RateLimit
 from .social_auth import register_social_routes
+from .native_auth import register_native_routes
 
 def now(): return datetime.now(timezone.utc).isoformat()
 def uid(): return str(uuid.uuid4())
@@ -64,6 +65,7 @@ def create_app(url=None):
         return {'token': token, 'user': public(u)}
 
     register_social_routes(app, sessions, limiter, login_result)
+    register_native_routes(app, sessions, limiter, login_result)
 
     @app.get('/health')
     def health(): return {'status': 'ok', 'mode': 'FYP demonstration; fictional data only'}

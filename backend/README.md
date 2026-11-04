@@ -17,6 +17,11 @@ Without database settings, the default is local SQLite for a demonstration. When
 
 Neon hosts PostgreSQL; Render will host the Python API. The phone communicates with the API and never receives database credentials. The root `neon.ts` declares only PostgreSQL, preserving the existing authentication and Python/scikit-learn architecture.
 
+The native Android sign-in update adds `/auth/social/google/native` and
+`/auth/social/facebook/native`, which verify SDK credentials before issuing the
+same patient sessions used by email login. Existing browser routes remain for
+older clients. See [native setup](../Docs/implementation/native-social-sign-in.md).
+
 `neon deploy` applies that configuration and downloads credentials into `.env.local` (or `.env` if present). Both files, the `.neon` link file, and root tooling dependencies are ignored by Git. Never print or commit their values.
 
 - `DATABASE_URL`: pooled URL for normal API requests.

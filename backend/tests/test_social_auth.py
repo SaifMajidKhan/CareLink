@@ -65,7 +65,8 @@ async def identity(*args):
 
 def test_unconfigured_providers_cannot_pretend_to_sign_in(client):
     assert client.get('/auth/providers').json() == {
-        'google': {'available': False}, 'facebook': {'available': False}}
+        'google': {'available': False, 'native_available': False},
+        'facebook': {'available': False, 'native_available': False}}
     assert client.post('/auth/social/google/start', json={'code_challenge': CHALLENGE}).status_code == 503
     assert client.post('/auth/social/unknown/start', json={'code_challenge': CHALLENGE}).status_code == 404
 
