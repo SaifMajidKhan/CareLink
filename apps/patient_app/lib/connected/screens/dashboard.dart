@@ -13,6 +13,7 @@ import 'care_screen.dart';
 import 'care_identity_screen.dart';
 import 'edit_profile_screen.dart';
 import 'manage_schedules_screen.dart';
+import 'patient_settings_screen.dart';
 import '../views/today_view.dart';
 import '../views/history_view.dart';
 import '../views/profile_view.dart';
@@ -21,6 +22,8 @@ import '../widgets/care_notice.dart';
 import '../widgets/connected_dose_card.dart';
 import '../../core/theme/app_theme.dart';
 import '../utils/care_format.dart';
+
+enum _DoseAction { record, resolveUpload, snooze }
 
 class Dashboard extends StatefulWidget {
   const Dashboard({
@@ -47,7 +50,7 @@ class _DashboardState extends State<Dashboard> with WidgetsBindingObserver {
   late Map<String, dynamic> _profileData;
   bool _busy = false, _remindersEnabled = false;
   String? _message, _updated;
-  DateTime _historyDate = DateTime.now();
+  DateTime _historyDate = DateUtils.dateOnly(DateTime.now());
   Timer? _retry;
   AccountStore get store => widget.store;
   @override
@@ -376,11 +379,73 @@ class _DashboardState extends State<Dashboard> with WidgetsBindingObserver {
     final picked = await showDatePicker(
       context: context,
       initialDate: _historyDate,
-      firstDate: today.subtract(const Duration(days: 30)),
+      firstDate: DateTime(today.year, today.month, today.day - 30),
       lastDate: today,
       helpText: 'Choose a day',
     );
     if (picked != null && mounted) setState(() => _historyDate = picked);
+  }
+
+  Future<void> _settings() async {
+    final action = await Navigator.push<PatientSettingsAction>(
+      context,
+      MaterialPageRoute(
+        builder: (_) => PatientSettingsScreen(
+          remindersEnabled: _remindersEnabled,
+          updated: _updated,
+          pending: _pendingCount,
+        ),
+      ),
+    );
+    if (!mounted) return;
+    switch (action) {
+      case PatientSettingsAction.reminders:
+        await _enable();
+      case PatientSettingsAction.reconnect:
+        await widget.onRenew(context);
+      case PatientSettingsAction.signOut:
+        await _logout();
+      case null:
+        break;
+    }
+  }
+
+  Future<void> _doseDetails(Map<String, dynamic> dose) async {
+    final action = await Navigator.push<_DoseAction>(
+      context,
+      MaterialPageRoute(
+        builder: (page) => Scaffold(
+          appBar: AppBar(title: const Text('Dose details')),
+          body: ListView(
+            padding: const EdgeInsets.all(16),
+            children: [
+              ConnectedDoseCard(
+                dose: dose,
+                onRecord: () => Navigator.pop(page, _DoseAction.record),
+                onConflict: () =>
+                    Navigator.pop(page, _DoseAction.resolveUpload),
+                onSnooze: _remindersEnabled
+                    ? () => Navigator.pop(page, _DoseAction.snooze)
+                    : null,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+    if (!mounted || action == null) return;
+    final current = _doses
+        .where((row) => row['key'] == dose['key'])
+        .firstOrNull;
+    if (current == null) return;
+    switch (action) {
+      case _DoseAction.record:
+        if (current['pending'] != true) await _record(current);
+      case _DoseAction.resolveUpload:
+        if (current['upload_error'] != null) await _conflict(current);
+      case _DoseAction.snooze:
+        if (current['report'] == null) await _snooze(current);
+    }
   }
 
   Widget _card(Map<String, dynamic> dose) => ConnectedDoseCard(
@@ -404,28 +469,20 @@ class _DashboardState extends State<Dashboard> with WidgetsBindingObserver {
       1 => HistoryView(
         date: _historyDate,
         doses: visible,
-        doseBuilder: _card,
+        onDoseDetails: _doseDetails,
         updated: _updated,
         busy: _busy,
         onCalendar: _pickHistoryDate,
         onDate: (date) => setState(() => _historyDate = date),
-        onToday: () => setState(() => _tab = 0),
       ),
       2 => ProfileView(
         user: _profileData,
-        patientId: store.userId,
-        updated: _updated,
-        pending: _pendingCount,
-        remindersEnabled: _remindersEnabled,
         onEdit: _editProfile,
         onIdentity: _identity,
         onCare: _care,
         onReadings: _readings,
-        onAdd: _addSchedule,
         onManage: _manageSchedules,
-        onReminders: _enable,
-        onLogout: _logout,
-        onRenew: () => widget.onRenew(context),
+        onSettings: _settings,
       ),
       _ => TodayView(
         unavailable: _updated == null && _message != null,
@@ -433,21 +490,20 @@ class _DashboardState extends State<Dashboard> with WidgetsBindingObserver {
         name: '${_profileData['name']}',
         doses: visible,
         doseBuilder: _card,
+        onDoseDetails: _doseDetails,
         updated: _updated,
         pending: _pendingCount,
         busy: _busy,
         onAdd: _addSchedule,
-        onReadings: _readings,
-        onCare: _care,
       ),
     };
     return Scaffold(
       appBar: AppBar(
         title: const CareLinkBrand(compact: true),
-        toolbarHeight: 72,
+        toolbarHeight: 56,
         actions: [
           Container(
-            margin: const EdgeInsets.fromLTRB(0, 12, 16, 12),
+            margin: const EdgeInsets.fromLTRB(0, 4, 12, 4),
             decoration: BoxDecoration(
               color: Colors.white,
               borderRadius: BorderRadius.circular(15),
@@ -490,7 +546,7 @@ class _DashboardState extends State<Dashboard> with WidgetsBindingObserver {
       ),
       bottomNavigationBar: SafeArea(
         top: false,
-        minimum: const EdgeInsets.fromLTRB(16, 6, 16, 12),
+        minimum: const EdgeInsets.fromLTRB(12, 4, 12, 6),
         child: DecoratedBox(
           decoration: BoxDecoration(
             color: Colors.white,
@@ -507,7 +563,7 @@ class _DashboardState extends State<Dashboard> with WidgetsBindingObserver {
           child: ClipRRect(
             borderRadius: BorderRadius.circular(24),
             child: NavigationBar(
-              height: MediaQuery.textScalerOf(context).scale(14) > 19 ? 96 : 76,
+              height: MediaQuery.textScalerOf(context).scale(14) > 19 ? 92 : 68,
               selectedIndex: _tab,
               onDestinationSelected: (index) => setState(() => _tab = index),
               destinations: const [

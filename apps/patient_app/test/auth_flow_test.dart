@@ -1,6 +1,8 @@
+import 'package:carelink_patient/connected/auth/account_role.dart';
 import 'package:carelink_patient/connected/connected_app.dart';
 import 'package:carelink_patient/connected/config/app_config.dart';
 import 'package:carelink_patient/connected/data/api_client.dart';
+import 'package:carelink_patient/connected/screens/caregiver_home_screen.dart';
 import 'package:carelink_patient/connected/screens/guest_home_screen.dart';
 import 'package:carelink_patient/connected/screens/sign_in_screen.dart';
 import 'package:flutter/material.dart';
@@ -11,10 +13,13 @@ class AuthApi extends ApiClient {
   AuthApi() : super(AppConfig.apiBase);
   final registrations = <Map<String, dynamic>>[];
   ApiFailure? registrationFailure;
+  var role = 'patient';
+  var providerChecks = 0;
 
   @override
   Future<dynamic> call(String method, String path, [Object? body]) async {
     if (path == '/auth/providers') {
+      providerChecks++;
       return {
         'google': {'available': false},
         'facebook': {'available': false},
@@ -23,10 +28,11 @@ class AuthApi extends ApiClient {
     if (path == '/auth/register') {
       registrations.add(Map<String, dynamic>.from(body! as Map));
       if (registrationFailure != null) throw registrationFailure!;
+      role = registrations.last['role'] as String;
     }
     return {
       'token': 'test-token',
-      'user': {'id': 'test-patient', 'name': 'Member', 'role': 'patient'},
+      'user': {'id': 'test-user', 'name': 'Member', 'role': role},
     };
   }
 }
@@ -78,6 +84,21 @@ void main() {
     await tester.pumpWidget(const SizedBox());
   });
 
+  testWidgets('a saved caregiver session opens the caregiver home', (
+    tester,
+  ) async {
+    FlutterSecureStorage.setMockInitialValues({
+      'carelink_session': '{"token":"test-token","server":"http://invalid.example.test","user":{"id":"test-caregiver","name":"Member","role":"caregiver"}}',
+    });
+    await tester.pumpWidget(const ConnectedCareLinkApp());
+    await tester.pumpAndSettle();
+    expect(find.byType(CaregiverHomeScreen), findsOneWidget);
+    expect(find.text('Add a patient'), findsOneWidget);
+    expect(find.text('Today'), findsNothing);
+    await tester.pumpWidget(const SizedBox());
+    FlutterSecureStorage.setMockInitialValues({});
+  });
+
   for (final destination in ['Today', 'History', 'Profile']) {
     testWidgets('guest $destination action asks for an account', (
       tester,
@@ -86,8 +107,9 @@ void main() {
       await tester.pumpWidget(
         MaterialApp(
           home: GuestHomeScreen(
-            onAuthenticate: (register) async {
+            onAuthenticate: (register, role) async {
               choice = register;
+              expect(role, AccountRole.patient);
             },
           ),
         ),
@@ -102,33 +124,31 @@ void main() {
     });
   }
 
-  for (final title in [
-    'My medicines',
-    'Dose history',
-    'Health readings',
-    'My care team',
-  ]) {
-    testWidgets('guest $title requires sign-in and can be dismissed', (
-      tester,
-    ) async {
-      var signIns = 0;
-      await tester.pumpWidget(
-        MaterialApp(
-          home: GuestHomeScreen(
-            onAuthenticate: (_) async {
-              signIns++;
-            },
-          ),
+  testWidgets('caregiver entry can be dismissed or start caregiver sign-in', (
+    tester,
+  ) async {
+    final choices = <(bool, AccountRole)>[];
+    await tester.pumpWidget(
+      MaterialApp(
+        home: GuestHomeScreen(
+          onAuthenticate: (register, role) async {
+            choices.add((register, role));
+          },
         ),
-      );
-      await press(tester, find.text(title));
-      expect(find.text('Your care starts here'), findsOneWidget);
-      await tester.tap(find.text('Maybe later'));
-      await tester.pumpAndSettle();
-      expect(signIns, 0);
-      expect(find.byType(GuestHomeScreen), findsOneWidget);
-    });
-  }
+      ),
+    );
+    await tester.tap(find.text('I’m a caregiver'));
+    await tester.pumpAndSettle();
+    expect(find.text('Caregiver access'), findsOneWidget);
+    await tester.tap(find.text('Maybe later'));
+    await tester.pumpAndSettle();
+    expect(choices, isEmpty);
+    await tester.tap(find.text('I’m a caregiver'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.widgetWithText(OutlinedButton, 'Sign in'));
+    await tester.pumpAndSettle();
+    expect(choices, [(false, AccountRole.caregiver)]);
+  });
 
   testWidgets('guest layout and sign-in prompt fit a small phone', (
     tester,
@@ -145,8 +165,10 @@ void main() {
     addTearDown(tester.view.resetPhysicalSize);
     addTearDown(tester.view.resetDevicePixelRatio);
     await tester.pumpWidget(
-      MaterialApp(home: GuestHomeScreen(onAuthenticate: (_) async {})),
+      MaterialApp(home: GuestHomeScreen(onAuthenticate: (_, _) async {})),
     );
+    expect(find.text('Get started').hitTestable(), findsOneWidget);
+    expect(find.text('I’m a caregiver').hitTestable(), findsOneWidget);
     await tester.tap(find.text('History'));
     await tester.pumpAndSettle();
     expect(
@@ -242,6 +264,31 @@ void main() {
     );
     expect(find.text('Please check this email address.'), findsOneWidget);
     expect(find.textContaining('(422)'), findsNothing);
+  });
+
+  testWidgets('caregiver registration uses the caregiver role and email', (
+    tester,
+  ) async {
+    final api = AuthApi();
+    String? signedInRole;
+    await tester.pumpWidget(
+      MaterialApp(
+        home: SignInScreen(
+          initialRegister: true,
+          registrationRole: AccountRole.caregiver,
+          api: api,
+          onSignedIn: (_, result) async {
+            signedInRole = result['user']['role'] as String;
+          },
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    await fillRegistration(tester);
+    await press(tester, find.widgetWithText(FilledButton, 'Create account'));
+    expect(api.registrations.single['role'], 'caregiver');
+    expect(signedInRole, 'caregiver');
+    expect(api.providerChecks, 0);
   });
 
   testWidgets('social buttons do not claim unconfigured providers are ready', (

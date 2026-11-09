@@ -59,14 +59,16 @@ Future<void> openProfile(
   await tester.tap(find.text('Profile'));
   await tester.pumpAndSettle();
   await tester.scrollUntilVisible(
-    find.text('Sign out'),
+    find.text('Settings'),
     350,
     scrollable: find.byType(Scrollable).first,
   );
   await Scrollable.ensureVisible(
-    tester.element(find.text('Sign out')),
+    tester.element(find.text('Settings')),
     alignment: 0.5,
   );
+  await tester.pumpAndSettle();
+  await tester.tap(find.text('Settings'));
   await tester.pumpAndSettle();
   await tester.tap(find.text('Sign out'));
   await tester.pumpAndSettle();

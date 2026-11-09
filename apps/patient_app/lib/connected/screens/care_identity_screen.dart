@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 
 import '../../core/theme/app_theme.dart';
+import '../models/patient_code.dart';
 import '../widgets/care_card.dart';
 import '../widgets/care_notice.dart';
 
@@ -18,19 +19,14 @@ class CareIdentityScreen extends StatelessWidget {
   Widget build(BuildContext context) => Scaffold(
     appBar: AppBar(title: const Text('Your care ID')),
     body: ListView(
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.fromLTRB(16, 10, 16, 16),
       children: [
-        const SizedBox(height: 8),
-        Text(
-          'Connect with people you trust',
-          style: Theme.of(context).textTheme.headlineMedium,
-        ),
-        const SizedBox(height: 10),
         const Text(
-          'Share your ID with your caregiver. You review and approve every connection request.',
+          'Ask your caregiver to scan this code. You approve every request.',
         ),
-        const SizedBox(height: 28),
+        const SizedBox(height: 12),
         CareCard(
+          padding: const EdgeInsets.all(12),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
@@ -39,9 +35,7 @@ class CareIdentityScreen extends StatelessWidget {
                 textAlign: TextAlign.center,
                 style: Theme.of(context).textTheme.titleLarge,
               ),
-              const SizedBox(height: 8),
-              const Text('CareLink patient', textAlign: TextAlign.center),
-              const SizedBox(height: 20),
+              const SizedBox(height: 6),
               LayoutBuilder(
                 builder: (context, constraints) => Center(
                   child: Semantics(
@@ -49,8 +43,8 @@ class CareIdentityScreen extends StatelessWidget {
                     image: true,
                     child: ExcludeSemantics(
                       child: QrImageView(
-                        data: 'carelink:patient:$patientId',
-                        size: constraints.maxWidth.clamp(150.0, 260.0),
+                        data: PatientCode.encode(patientId),
+                        size: constraints.maxWidth.clamp(0.0, 224.0),
                         backgroundColor: Colors.white,
                         padding: const EdgeInsets.all(16),
                       ),
@@ -58,7 +52,7 @@ class CareIdentityScreen extends StatelessWidget {
                   ),
                 ),
               ),
-              const SizedBox(height: 18),
+              const SizedBox(height: 8),
               Text(
                 'Patient ID',
                 textAlign: TextAlign.center,
@@ -74,7 +68,7 @@ class CareIdentityScreen extends StatelessWidget {
                   color: AppTheme.ink,
                 ),
               ),
-              const SizedBox(height: 20),
+              const SizedBox(height: 12),
               FilledButton.icon(
                 onPressed: () async {
                   await Clipboard.setData(ClipboardData(text: patientId));
@@ -90,7 +84,7 @@ class CareIdentityScreen extends StatelessWidget {
             ],
           ),
         ),
-        const SizedBox(height: 20),
+        const SizedBox(height: 10),
         const CareNotice(
           'Sharing an ID does not give access to your records. You stay in control and can remove a connection at any time.',
           icon: Icons.shield_outlined,

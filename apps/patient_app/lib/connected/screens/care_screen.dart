@@ -196,25 +196,17 @@ class _CareScreenState extends State<CareScreen> {
         onRefresh: _load,
         child: ListView(
           physics: const AlwaysScrollableScrollPhysics(),
-          padding: const EdgeInsets.all(20),
+          padding: const EdgeInsets.fromLTRB(16, 10, 16, 18),
           children: [
-            Text(
-              'Care feels better together',
-              style: Theme.of(context).textTheme.headlineMedium,
-            ),
+            const Text('You choose who can see your updates.'),
             const SizedBox(height: 10),
-            const Text(
-              'Choose who can see your updates. Every connection starts with your approval.',
-            ),
-            const SizedBox(height: 22),
-            if (widget.patientId != null &&
-                (requests.isNotEmpty || connected.isNotEmpty || _error != null))
+            if (widget.patientId != null)
               OutlinedButton.icon(
                 onPressed: _identity,
                 icon: const Icon(Icons.qr_code_2_rounded),
                 label: const Text('Show my care ID'),
               ),
-            const SizedBox(height: 16),
+            const SizedBox(height: 8),
             if (_busy) const LinearProgressIndicator(),
             if (_error != null) ...[
               CareNotice(_error!, error: true),
@@ -224,15 +216,11 @@ class _CareScreenState extends State<CareScreen> {
                 _error == null &&
                 requests.isEmpty &&
                 connected.isEmpty) ...[
-              const SizedBox(height: 12),
-              CareEmptyState(
-                icon: Icons.people_outline_rounded,
-                title: 'Your circle starts with you',
-                message: 'Share your care ID with someone you trust. Their connection request will appear here.',
-                actionLabel: widget.patientId == null
-                    ? null
-                    : 'Open my care ID',
-                onAction: widget.patientId == null ? null : _identity,
+              const CareCard(
+                padding: EdgeInsets.all(14),
+                child: Text(
+                  'No requests or active connections. Share your care ID with someone you trust.',
+                ),
               ),
             ],
             if (requests.isNotEmpty) ...[

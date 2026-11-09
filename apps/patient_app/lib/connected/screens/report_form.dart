@@ -115,16 +115,10 @@ class _ReportFormState extends State<ReportForm> {
         ),
       ),
       body: ListView(
-        padding: const EdgeInsets.all(20),
+        padding: const EdgeInsets.fromLTRB(16, 10, 16, 16),
         children: [
-          Text(
-            'Your update matters',
-            style: Theme.of(context).textTheme.headlineMedium,
-          ),
-          const SizedBox(height: 10),
-          const Text('Record what happened, when it works for you.'),
-          const SizedBox(height: 24),
           CareCard(
+            padding: const EdgeInsets.all(14),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -134,7 +128,7 @@ class _ReportFormState extends State<ReportForm> {
                 ),
                 const SizedBox(height: 7),
                 Text(widget.dose['instructions']),
-                const SizedBox(height: 14),
+                const SizedBox(height: 8),
                 Text(
                   'Scheduled for ${CareFormat.clock(widget.dose['time'])} · ${CareFormat.date(DateTime.parse(widget.dose['day']))}',
                   style: Theme.of(context).textTheme.bodySmall,
@@ -142,13 +136,13 @@ class _ReportFormState extends State<ReportForm> {
               ],
             ),
           ),
-          const CareSectionHeading('How did this dose go?'),
+          const CareSectionHeading('What happened?'),
           DoseOutcomeOption(
             taken: true,
             selected: _outcome == 'taken',
             onTap: _busy ? null : () => setState(() => _outcome = 'taken'),
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 8),
           DoseOutcomeOption(
             taken: false,
             selected: _outcome == 'skipped',

@@ -63,17 +63,8 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       body: Form(
         key: _form,
         child: ListView(
-          padding: const EdgeInsets.all(20),
+          padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
           children: [
-            Text(
-              'Make it yours',
-              style: Theme.of(context).textTheme.headlineMedium,
-            ),
-            const SizedBox(height: 10),
-            const Text(
-              'Keep the details you share with your care team up to date.',
-            ),
-            const SizedBox(height: 26),
             CareCard(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,

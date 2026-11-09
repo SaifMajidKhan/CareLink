@@ -166,16 +166,9 @@ class _ScheduleFormState extends State<ScheduleForm> {
       body: Form(
         key: _form,
         child: ListView(
-          padding: const EdgeInsets.all(20),
+          padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
           children: [
-            Text(
-              'A place for your routine',
-              style: Theme.of(context).textTheme.headlineMedium,
-            ),
-            const SizedBox(height: 10),
-            const Text(
-              'Add the medicine and daily instructions from your care plan.',
-            ),
+            const Text('Use the medicine instructions from your care plan.'),
             const CareSectionHeading('Medicine details'),
             CareCard(
               child: Column(

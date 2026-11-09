@@ -4,8 +4,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 import '../core/theme/app_theme.dart';
+import 'auth/account_role.dart';
 import 'data/api_client.dart';
 import 'data/account_store.dart';
+import 'screens/caregiver_home_screen.dart';
 import 'screens/sign_in_screen.dart';
 import 'screens/dashboard.dart';
 import 'screens/guest_home_screen.dart';
@@ -25,6 +27,7 @@ class _ConnectedCareLinkAppState extends State<ConnectedCareLinkApp> {
     ),
   );
   Map<String, dynamic>? _session;
+  ApiClient? _api;
   AccountStore? _store;
   bool _loading = true;
   String? _error;
@@ -45,11 +48,13 @@ class _ConnectedCareLinkAppState extends State<ConnectedCareLinkApp> {
   }
 
   void _setSession(Map<String, dynamic> data) {
+    final user = data['user'] as Map;
+    final role = AccountRole.fromApi(user['role']);
+    if (role == null) throw ApiFailure('This account uses the web portal.');
+    final api = ApiClient(data['server'], token: data['token']);
     _session = data;
-    _store = AccountStore(
-      ApiClient(data['server'], token: data['token']),
-      data['user']['id'],
-    );
+    _api = api;
+    _store = role == AccountRole.patient ? AccountStore(api, user['id']) : null;
   }
 
   Future<void> _signedIn(String server, Map<String, dynamic> data) async {
@@ -65,11 +70,16 @@ class _ConnectedCareLinkAppState extends State<ConnectedCareLinkApp> {
     if (mounted) setState(() => _session = updated);
   }
 
-  Future<void> _authenticate(BuildContext pageContext, bool register) async {
+  Future<void> _authenticate(
+    BuildContext pageContext,
+    bool register,
+    AccountRole registrationRole,
+  ) async {
     await Navigator.of(pageContext).push(
       MaterialPageRoute<void>(
         builder: (loginContext) => SignInScreen(
           initialRegister: register,
+          registrationRole: registrationRole,
           onSignedIn: (server, data) async {
             await _signedIn(server, data);
             if (loginContext.mounted) Navigator.of(loginContext).pop();
@@ -85,22 +95,28 @@ class _ConnectedCareLinkAppState extends State<ConnectedCareLinkApp> {
     if (mounted) {
       setState(() {
         _session = null;
+        _api = null;
         _store = null;
       });
     }
   }
 
   Future<void> _renew(BuildContext pageContext) async {
+    final current = _session!;
+    final api = _api!;
+    final user = current['user'] as Map;
     await Navigator.of(pageContext).push(
       MaterialPageRoute<void>(
         builder: (loginContext) => SignInScreen(
-          initialServer: _session!['server'],
+          initialServer: api.baseUrl,
+          registrationRole: AccountRole.fromApi(user['role'])!,
           allowRegistration: false,
           onSignedIn: (server, data) async {
-            if (server != _session!['server'] ||
-                data['user']['id'] != _store!.userId) {
+            if (server != api.baseUrl ||
+                data['user']['id'] != user['id'] ||
+                data['user']['role'] != user['role']) {
               throw ApiFailure(
-                'Sign in to the same patient account and server to keep pending reports safe.',
+                'Sign in to the same CareLink account to reconnect.',
               );
             }
             data['server'] = server;
@@ -108,7 +124,7 @@ class _ConnectedCareLinkAppState extends State<ConnectedCareLinkApp> {
               key: 'carelink_session',
               value: jsonEncode(data),
             );
-            _store!.api.token = data['token'];
+            api.token = data['token'];
             if (mounted) setState(() => _session = data);
             if (loginContext.mounted) Navigator.of(loginContext).pop();
           },
@@ -129,9 +145,17 @@ class _ConnectedCareLinkAppState extends State<ConnectedCareLinkApp> {
         : _session == null
         ? Builder(
             builder: (pageContext) => GuestHomeScreen(
-              onAuthenticate: (register) =>
-                  _authenticate(pageContext, register),
+              onAuthenticate: (register, role) =>
+                  _authenticate(pageContext, register, role),
             ),
+          )
+        : _store == null
+        ? CaregiverHomeScreen(
+            key: ValueKey(_session!['user']['id']),
+            api: _api!,
+            user: Map<String, dynamic>.from(_session!['user']),
+            onLogout: _logout,
+            onRenew: _renew,
           )
         : Dashboard(
             key: ValueKey(_store!.scope),

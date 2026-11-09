@@ -125,17 +125,8 @@ class _ManageSchedulesScreenState extends State<ManageSchedulesScreen> {
       onRefresh: _load,
       child: ListView(
         physics: const AlwaysScrollableScrollPhysics(),
-        padding: const EdgeInsets.fromLTRB(20, 20, 20, 110),
+        padding: const EdgeInsets.fromLTRB(16, 10, 16, 100),
         children: [
-          Text(
-            'Your routine, organized',
-            style: Theme.of(context).textTheme.headlineMedium,
-          ),
-          const SizedBox(height: 10),
-          const Text(
-            'Keep the schedule from your care plan here. Saved dose records stay in your history.',
-          ),
-          const SizedBox(height: 24),
           if (_busy) const LinearProgressIndicator(),
           if (_error != null) ...[
             CareNotice(_error!, error: true),

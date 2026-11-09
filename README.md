@@ -2,7 +2,7 @@
 
 CareLink is our approved BSCS Final Year Project: a medication-reporting and care-coordination app for people managing hypertension or diabetes.
 
-**Progress updated: 4 November 2026.** The Flutter patient app runs on Android, the FastAPI backend is hosted on Render, and Neon PostgreSQL stores server records. The app includes medication schedules, dose reports, history, health readings, profiles, offline reporting and patient-controlled caregiver connections. A separate model has been trained on synthetic data, with its Colab notebook and results saved in this repository.
+**Progress updated: 9 November 2026.** The Flutter Android app includes medication schedules, dose reports, history, health readings, profiles and offline reporting. The same app now has a caregiver mode for scanning a patient’s QR code or entering their ID and requesting access. The patient decides whether to approve the request. The FastAPI backend is hosted on Render and stores records in Neon PostgreSQL. A separate model was trained on synthetic data, with its Colab notebook and results saved in this repository.
 
 The project is a working development prototype. Final device acceptance, complete social-login walkthroughs, production release preparation and useful real-world AI prediction remain open.
 
@@ -11,8 +11,9 @@ The project is a working development prototype. Final device acceptance, complet
 | Area | Current status |
 | --- | --- |
 | Planning | Project approved; scope, medication workflows, consent rules and offline behaviour documented |
-| Patient app | Connected Flutter app built and installed on the Android emulator |
-| Design | Today, History, Profile and related forms redesigned with the accepted teal-and-white theme |
+| Patient app | Connected Flutter app with schedules, reporting, history, reminders and profiles |
+| Caregiver mode | Email account, camera QR scanner, manual ID entry and read-only dose updates after approval; physical camera test pending |
+| Design | Shorter Today, History, Profile and forms; large text and touch targets retained for older and middle-aged patients |
 | Backend | FastAPI deployed on Render with Neon PostgreSQL |
 | Google login | Native SDK implemented; user confirmed that the device account picker opens; completed login and session restoration still need confirmation |
 | Facebook login | Native SDK, Android registration and backend verification configured; real-account walkthrough still pending |
@@ -20,7 +21,7 @@ The project is a working development prototype. Final device acceptance, complet
 | Web portal | Separate team member's workstream; its completion is not claimed by this app/backend checkpoint |
 | Release | Debug APK available; no CareLink APK/AAB uploaded to Google Play Console |
 
-## Patient app: implemented features
+## Android app: implemented features
 
 ### Accounts and profile
 
@@ -36,11 +37,11 @@ The project is a working development prototype. Final device acceptance, complet
 
 - Add a medicine schedule with multiple daily times, effective dates and an explicit timezone.
 - Manage schedules and confirm when a schedule should end.
-- Today shows scheduled doses and their reported status.
+- Today shows one dose to focus on; **All doses** opens the rest of the day when needed.
 - Record **Taken** or **Skipped**, including actual or approximate taken time where relevant.
 - Keep the time medicine was reportedly taken separate from the time the report was entered or received.
 - Correct a report with a reason and a server audit record.
-- Browse History by day, with readable dates and explicit report counts.
+- Browse History with a date selector and short dose rows. Open a row for full details and any available correction action.
 - An unanswered dose remains **Not confirmed**; it is never automatically counted as Skipped.
 
 ### Offline reporting and reminders
@@ -62,19 +63,22 @@ Android controls notification delivery; exact timing, reboot behaviour and backg
 - View saved readings through the connected app.
 - Review caregiver requests and permissions before accepting or declining them.
 - View active and past connections; confirm removal of caregiver access without a compulsory 7- or 14-day waiting period.
-- Displaying a Patient ID or QR starts identification/requesting; it does not grant access to records.
+- Caregivers choose **I’m a caregiver** on the welcome screen and use email/password to sign in or create a caregiver account.
+- **Add a patient** lets a caregiver scan the QR from **Profile → Your care ID**, or enter the full patient ID. Scanning fills the ID; **Send request** sends it for approval.
+- Caregivers see a pending state until the patient approves. Approved connections can open today’s shared doses and reports as a read-only view.
 
-The QR display is implemented. A complete camera-scanning journey in the separate caregiver portal is not claimed here.
+See the [two-account walkthrough](Docs/implementation/caregiver-mobile-and-accessibility.md) for a phone demo and the camera permission fallback.
 
 ### UI and file organization
 
-- Redesigned Today, History and Profile with clear empty states, medicine cards, grouped actions and readable timestamps.
-- Consistent medicine, report, correction, reading, profile and consent forms.
+- Shorter Today, History and Profile layouts bring common actions closer to the top.
+- Profile links directly to care ID, care team, health readings, medicines and settings. QR details, reminders and sign-out each have a clear place.
+- Medicine, report, correction and reading forms keep the required fields and review steps with fewer repeated headings.
 - Shared theme, reusable widgets, separate views, data services, authentication adapters and models.
 - Layout checks at 320 logical pixels wide and 1.8 text scale; statuses use words/icons alongside colour.
 - Primary teal `#0F766E`, background `#F8FAFC`, main text `#0F172A` and white cards.
 
-See the [design record](Docs/design/colour-scheme.md) and [UI implementation/checks](Docs/implementation/patient-ui-redesign.md). Final usability checks with patients, caregivers and screen readers remain open.
+See the [design record](Docs/design/colour-scheme.md), [earlier UI work](Docs/implementation/patient-ui-redesign.md) and [latest patient screen changes](Docs/implementation/caregiver-mobile-and-accessibility.md). Final usability checks with patients, caregivers and screen readers remain open.
 
 ## Backend and hosting
 
@@ -143,16 +147,18 @@ The earlier research document records the decision before training; the results 
 
 ## Latest recorded verification
 
-Checks below were recorded on **4 November 2026**. They describe the current code checkpoint and earlier integration checks; this README update changes documentation only.
+The table includes the latest mobile checks and earlier backend and deployment checks.
 
 | Check | Result |
 | --- | --- |
-| Flutter static analysis | No issues found |
-| Flutter automated tests | **65 passed** |
+| Flutter static analysis | No issues found (9 November 2026) |
+| Flutter automated tests | **69 passed** (9 November 2026) |
 | Backend automated tests | **49 passed**, using isolated test databases |
 | Root `npm run build` | Passed: Neon configuration loaded and Python backend compiled |
-| Android debug build | APK built, package/signature checked, installed and launched on the emulator |
-| Patient UI checks | Guest and signed-in screens/forms visually checked; populated report states covered by test fixtures |
+| Android debug build | Updated APK built and package ID/camera permission checked (9 November 2026); the earlier build was installed and launched on the emulator |
+| Patient UI checks | 320-pixel-wide layouts at 1.8× text, plus a short screen with multiple doses and reachable report/correction actions |
+| Caregiver mobile checks | Automated QR parsing, manual input, request confirmation, pending/approved/revoked state and read-only display; physical camera test pending |
+| API consent recheck | Existing request, approval, dose reporting and revocation test passed against an isolated database (9 November 2026) |
 | Earlier HTTP-to-Neon smoke test | Passed persistence, duplicate prevention, consent/revocation and test-data cleanup |
 | Deployed native authentication | Both providers enabled; invalid Google/Facebook credentials rejected with 401 |
 | User's native Google check | Account picker opens; successful login/session restoration still pending confirmation |
@@ -165,7 +171,7 @@ The root build command checks backend tooling; it does not build the Flutter APK
 
 | Location | Purpose |
 | --- | --- |
-| `apps/patient_app/` | Flutter/Dart Android patient app and its tests |
+| `apps/patient_app/` | Flutter/Dart Android patient and caregiver app and its tests |
 | `apps/patient_app/lib/connected/` | Connected screens, views, authentication, API client, SQLite cache/outbox and reminders |
 | `apps/patient_app/lib/core/theme/` | Shared colours, typography and control styles |
 | `backend/app/` | Python/FastAPI API, security, storage and authentication |
@@ -184,7 +190,7 @@ The earlier local-only Flutter prototype and its regression tests are retained. 
 1. **Finish social-login acceptance:** complete Google login and reopening/session checks; test Facebook with a real account and its app-switch/fallback behaviour.
 2. **Run the complete patient journey on a physical phone:** sign in, create schedules, report/correct doses, view history, edit profile and save readings against the hosted API.
 3. **Verify offline and reminder behaviour on that phone:** save offline, restart, reconnect, confirm upload and caregiver visibility; test denied permissions, background delivery, snooze and reboot recovery.
-4. **Finish the caregiver integration with the portal owner:** request access, approve/decline, view permitted records and confirm removal immediately blocks server access.
+4. **Test the mobile caregiver flow on two phones:** scan the QR, repeat with manual ID entry, approve or decline, view permitted updates and check that removal blocks access. Ask older and middle-aged users to try the shorter patient screens.
 5. **Continue ML work:** review the validation threshold and error trade-offs, retain the held-out test for final evaluation, and seek suitable real data before making personal-prediction claims.
 6. **Prepare production features and release:** email ownership checks/password recovery, authenticated provider linking if required, durable abuse controls, versioned schema migrations/backup procedures, encrypted phone databases, release signing and Play Console testing.
 
@@ -207,6 +213,5 @@ Some implementation documents describe earlier checkpoints. Use this dated READM
 - Active repository: `C:\CareLink-Repo`.
 - Continue this work on the existing **`saleem`** branch, keeping changes in focused commits.
 - App/backend/AI and portal work follow the team's ownership split; portal changes are saved by its owner.
-- Push the README progress update to `saleem`. **Keep it unmerged into `main` for now**, as requested.
-- This documentation update does not commit, push, merge, deploy or publish a build.
+- Push app and documentation checkpoints to `saleem`. Keep them unmerged into `main` until review.
 - Keep private environment files, Android local SDK settings, passwords/tokens, real patient information, generated builds, local databases and dependency folders out of Git.

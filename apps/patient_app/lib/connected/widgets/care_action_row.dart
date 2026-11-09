@@ -10,24 +10,26 @@ class CareActionRow extends StatelessWidget {
     required this.onTap,
     this.subtitle,
     this.danger = false,
+    this.compact = false,
     this.trailing,
   });
   final IconData icon;
   final String title;
   final String? subtitle;
   final VoidCallback? onTap;
-  final bool danger;
+  final bool danger, compact;
   final Widget? trailing;
   @override
   Widget build(BuildContext context) => InkWell(
     borderRadius: BorderRadius.circular(18),
     onTap: onTap,
-    child: Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+    child: Container(
+      constraints: const BoxConstraints(minHeight: 52),
+      padding: EdgeInsets.symmetric(horizontal: 14, vertical: compact ? 9 : 16),
       child: Row(
         children: [
           Container(
-            padding: const EdgeInsets.all(11),
+            padding: EdgeInsets.all(compact ? 6 : 11),
             decoration: BoxDecoration(
               color: danger ? const Color(0xFFFEF2F2) : AppTheme.tealSoft,
               borderRadius: BorderRadius.circular(14),
@@ -58,9 +60,11 @@ class CareActionRow extends StatelessWidget {
               ],
             ),
           ),
-          const SizedBox(width: 8),
-          trailing ??
-              const Icon(Icons.chevron_right_rounded, color: AppTheme.muted),
+          if (trailing != null || onTap != null) ...[
+            const SizedBox(width: 8),
+            trailing ??
+                const Icon(Icons.chevron_right_rounded, color: AppTheme.muted),
+          ],
         ],
       ),
     ),

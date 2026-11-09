@@ -10,13 +10,12 @@ class ConnectedDoseCard extends StatelessWidget {
   const ConnectedDoseCard({
     super.key,
     required this.dose,
-    required this.onRecord,
-    required this.onConflict,
+    this.onRecord,
+    this.onConflict,
     this.onSnooze,
   });
   final Map<String, dynamic> dose;
-  final VoidCallback onRecord, onConflict;
-  final VoidCallback? onSnooze;
+  final VoidCallback? onRecord, onConflict, onSnooze;
 
   @override
   Widget build(BuildContext context) {
@@ -26,6 +25,7 @@ class ConnectedDoseCard extends StatelessWidget {
     final canReport =
         !pending && scheduled != null && !scheduled.isAfter(DateTime.now());
     return CareCard(
+      padding: const EdgeInsets.all(14),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
@@ -33,7 +33,7 @@ class ConnectedDoseCard extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Container(
-                padding: const EdgeInsets.all(12),
+                padding: const EdgeInsets.all(7),
                 decoration: BoxDecoration(
                   color: AppTheme.tealSoft,
                   borderRadius: BorderRadius.circular(15),
@@ -41,10 +41,10 @@ class ConnectedDoseCard extends StatelessWidget {
                 child: const Icon(
                   Icons.medication_outlined,
                   color: AppTheme.teal,
-                  size: 26,
+                  size: 22,
                 ),
               ),
-              const SizedBox(width: 14),
+              const SizedBox(width: 10),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -63,7 +63,7 @@ class ConnectedDoseCard extends StatelessWidget {
               ),
             ],
           ),
-          const SizedBox(height: 18),
+          const SizedBox(height: 10),
           Wrap(
             spacing: 8,
             runSpacing: 10,
@@ -88,13 +88,13 @@ class ConnectedDoseCard extends StatelessWidget {
               ),
             ],
           ),
-          const SizedBox(height: 14),
+          const SizedBox(height: 8),
           Align(
             alignment: Alignment.centerLeft,
             child: DoseStatusTag('${report?['outcome'] ?? dose['status']}'),
           ),
           if (report != null) ...[
-            const SizedBox(height: 14),
+            const SizedBox(height: 8),
             if (report['taken_at'] != null)
               Text(
                 'Taken: ${CareFormat.stamp(report['taken_at'])}${report['approximate'] == true ? ' (approximate)' : ''}',
@@ -106,21 +106,21 @@ class ConnectedDoseCard extends StatelessWidget {
             ),
           ],
           if (pending) ...[
-            const SizedBox(height: 14),
+            const SizedBox(height: 8),
             const CareNotice(
               'Saved on this phone—waiting to upload',
               warning: true,
               icon: Icons.cloud_upload_outlined,
             ),
           ],
-          if (dose['upload_error'] != null)
+          if (dose['upload_error'] != null && onConflict != null)
             TextButton.icon(
               onPressed: onConflict,
               icon: const Icon(Icons.info_outline_rounded),
               label: const Text('Review upload problem'),
             ),
-          if (canReport) ...[
-            const SizedBox(height: 18),
+          if (canReport && onRecord != null) ...[
+            const SizedBox(height: 10),
             FilledButton.icon(
               onPressed: onRecord,
               icon: Icon(

@@ -137,19 +137,10 @@ class _ReadingsScreenState extends State<ReadingsScreen> {
       onRefresh: _load,
       child: ListView(
         physics: const AlwaysScrollableScrollPhysics(),
-        padding: const EdgeInsets.fromLTRB(20, 20, 20, 110),
+        padding: const EdgeInsets.fromLTRB(16, 10, 16, 100),
         children: [
-          Text(
-            'Your readings, together',
-            style: Theme.of(context).textTheme.headlineMedium,
-          ),
-          const SizedBox(height: 10),
-          const Text(
-            'Keep the measurements you enter in one easy-to-find place.',
-          ),
-          const SizedBox(height: 18),
           CareSyncLine(updated: _updated, busy: _busy),
-          const SizedBox(height: 22),
+          const SizedBox(height: 10),
           if (_busy) const LinearProgressIndicator(),
           if (_error != null) ...[
             CareNotice(_error!, error: true),

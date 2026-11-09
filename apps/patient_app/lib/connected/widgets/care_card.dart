@@ -36,7 +36,7 @@ class CareSectionHeading extends StatelessWidget {
   final Widget? action;
   @override
   Widget build(BuildContext context) => Padding(
-    padding: const EdgeInsets.only(top: 24, bottom: 12),
+    padding: const EdgeInsets.only(top: 16, bottom: 8),
     child: Row(
       children: [
         Expanded(

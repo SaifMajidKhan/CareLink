@@ -60,6 +60,51 @@ void main() {
     await tester.pumpWidget(const SizedBox());
   });
 
+  testWidgets('Today puts the due dose first and keeps correction reachable', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(360, 640);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    final now = DateTime.now();
+    final midnight = DateTime(now.year, now.month, now.day);
+    final api = UiApi()
+      ..doses = [
+        uiDose(status: 'taken')
+          ..['name'] = 'Morning medicine'
+          ..['key'] = 'morning'
+          ..['scheduled_at'] = midnight.toIso8601String(),
+        uiDose()
+          ..['name'] = 'Due medicine'
+          ..['key'] = 'due'
+          ..['scheduled_at'] = midnight.toIso8601String(),
+        uiDose(status: 'upcoming')
+          ..['name'] = 'Later medicine'
+          ..['key'] = 'later'
+          ..['scheduled_at'] = DateTime(
+            now.year,
+            now.month,
+            now.day,
+            23,
+            59,
+            59,
+            999,
+          ).toIso8601String(),
+      ];
+    await launch(tester, UiStore(api));
+    expect(find.text('Due medicine').hitTestable(), findsOneWidget);
+    expect(find.text('Record dose').hitTestable(), findsOneWidget);
+    expect(find.text('All doses (3)').hitTestable(), findsOneWidget);
+    expect(find.text('Morning medicine'), findsNothing);
+    await tester.tap(find.text('All doses (3)'));
+    await tester.pumpAndSettle();
+    await uiPress(tester, find.text('Morning medicine'));
+    expect(find.text('Dose details'), findsOneWidget);
+    expect(find.text('Correct report').hitTestable(), findsOneWidget);
+    await tester.pumpWidget(const SizedBox());
+  });
+
   testWidgets(
     'profile edits return to the patient view and notify secure-session owner',
     (tester) async {

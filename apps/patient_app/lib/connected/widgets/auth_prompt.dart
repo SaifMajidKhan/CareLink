@@ -4,12 +4,14 @@ Future<void> showAuthPrompt(
   BuildContext context, {
   required String feature,
   required Future<void> Function(bool register) onAuthenticate,
+  String title = 'Your care starts here',
+  String account = 'an account',
 }) async {
   final register = await showDialog<bool>(
     context: context,
     builder: (dialog) => AlertDialog(
       icon: const Icon(Icons.lock_outline_rounded),
-      title: const Text('Your care starts here'),
+      title: Text(title),
       content: SizedBox(
         width: 340,
         child: SingleChildScrollView(
@@ -18,7 +20,7 @@ Future<void> showAuthPrompt(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               Text(
-                'Sign in or create an account to $feature.',
+                'Sign in or create $account to $feature.',
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: 24),

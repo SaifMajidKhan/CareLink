@@ -112,16 +112,8 @@ class _ReadingFormState extends State<ReadingForm> {
       body: Form(
         key: _form,
         child: ListView(
-          padding: const EdgeInsets.all(20),
+          padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
           children: [
-            Text(
-              'Keep a clear record',
-              style: Theme.of(context).textTheme.headlineMedium,
-            ),
-            const SizedBox(height: 10),
-            const Text(
-              'Enter the values from a measurement you have already taken.',
-            ),
             const CareSectionHeading('Reading type'),
             DropdownButtonFormField<String>(
               key: const ValueKey('reading-kind'),

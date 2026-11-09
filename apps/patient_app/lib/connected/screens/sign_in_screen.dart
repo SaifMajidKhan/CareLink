@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../auth/account_role.dart';
 import '../auth/auth_validation.dart';
 import '../auth/social_sign_in.dart';
 import '../config/app_config.dart';
 import '../data/api_client.dart';
-import '../widgets/carelink_brand.dart';
 import '../widgets/social_sign_in_buttons.dart';
 
 class SignInScreen extends StatefulWidget {
@@ -15,12 +15,14 @@ class SignInScreen extends StatefulWidget {
     this.initialServer,
     this.initialRegister = false,
     this.allowRegistration = true,
+    this.registrationRole = AccountRole.patient,
     this.api,
     this.social,
   });
   final Future<void> Function(String, Map<String, dynamic>) onSignedIn;
   final String? initialServer;
   final bool initialRegister, allowRegistration;
+  final AccountRole registrationRole;
   final ApiClient? api;
   final SocialSignIn? social;
   @override
@@ -36,10 +38,11 @@ class _SignInScreenState extends State<SignInScreen> {
   late final ApiClient _api;
   late final SocialSignIn _social;
   late bool _register;
-  bool _busy = false, _showPassword = false, _loadingProviders = true;
+  bool _busy = false, _showPassword = false, _loadingProviders = false;
   Map<String, bool> _providers = {'google': false, 'facebook': false};
   Map<String, String> _fieldErrors = {};
   String? _error;
+  bool get _caregiver => widget.registrationRole == AccountRole.caregiver;
 
   @override
   void initState() {
@@ -54,7 +57,10 @@ class _SignInScreenState extends State<SignInScreen> {
           ),
         );
     _social = widget.social ?? SocialSignIn(_api);
-    _loadProviders();
+    if (!_caregiver) {
+      _loadingProviders = true;
+      _loadProviders();
+    }
   }
 
   Future<void> _loadProviders() async {
@@ -79,11 +85,16 @@ class _SignInScreenState extends State<SignInScreen> {
   Future<void> _accept(dynamic result) async {
     if (result is! Map ||
         result['token'] is! String ||
-        result['user'] is! Map) {
+        result['user'] is! Map ||
+        result['user']['id'] is! String) {
       throw ApiFailure('Sign-in could not be completed. Please try again.');
     }
-    if (result['user']['role'] != 'patient') {
-      throw ApiFailure('Use the caregiver portal for this account.');
+    final role = AccountRole.fromApi(result['user']['role']);
+    if (role == null) {
+      throw ApiFailure('Use the CareLink web portal for this account.');
+    }
+    if (_caregiver && role != AccountRole.caregiver) {
+      throw ApiFailure('This is a patient account. Use the patient sign-in.');
     }
     await widget.onSignedIn(_api.baseUrl, Map<String, dynamic>.from(result));
     TextInput.finishAutofillContext();
@@ -105,7 +116,7 @@ class _SignInScreenState extends State<SignInScreen> {
           'email': _email.text.trim().toLowerCase(),
           'password': _password.text,
           if (_register) 'name': _name.text.trim(),
-          if (_register) 'role': 'patient',
+          if (_register) 'role': widget.registrationRole.name,
         },
       );
       await _accept(result);
@@ -181,7 +192,7 @@ class _SignInScreenState extends State<SignInScreen> {
         statusBarBrightness: Brightness.light,
       ),
       elevation: 0,
-      title: const Text(''),
+      title: Text(_caregiver ? 'Caregiver' : 'CareLink'),
     ),
     body: SafeArea(
       top: false,
@@ -193,30 +204,17 @@ class _SignInScreenState extends State<SignInScreen> {
               key: _form,
               autovalidateMode: AutovalidateMode.onUserInteraction,
               child: ListView(
-                padding: const EdgeInsets.fromLTRB(24, 16, 24, 32),
+                padding: const EdgeInsets.fromLTRB(16, 8, 16, 20),
                 children: [
-                  const CareLinkBrand(),
-                  const SizedBox(height: 30),
-                  Text(
-                    _register ? 'Start your care journey' : 'Welcome back',
-                    style: const TextStyle(
-                      fontSize: 27,
-                      fontWeight: FontWeight.w700,
-                      color: Color(0xFF0F172A),
-                    ),
-                  ),
-                  const SizedBox(height: 8),
                   Text(
                     _register
-                        ? 'Create an account to keep your daily care together.'
-                        : 'Sign in to continue your daily routine.',
-                    style: const TextStyle(
-                      fontSize: 16,
-                      height: 1.5,
-                      color: Color(0xFF475569),
-                    ),
+                        ? (_caregiver
+                              ? 'Create caregiver account'
+                              : 'Create your account')
+                        : (_caregiver ? 'Caregiver sign-in' : 'Welcome back'),
+                    style: Theme.of(context).textTheme.headlineSmall,
                   ),
-                  const SizedBox(height: 26),
+                  const SizedBox(height: 16),
                   if (_register) ...[
                     TextFormField(
                       key: const ValueKey('auth-name'),
@@ -341,27 +339,29 @@ class _SignInScreenState extends State<SignInScreen> {
                           )
                         : Text(_register ? 'Create account' : 'Sign in'),
                   ),
-                  const SizedBox(height: 22),
-                  const Row(
-                    children: [
-                      Expanded(child: Divider()),
-                      Padding(
-                        padding: EdgeInsets.symmetric(horizontal: 14),
-                        child: Text(
-                          'or continue with',
-                          style: TextStyle(color: Color(0xFF64748B)),
+                  if (!_caregiver) ...[
+                    const SizedBox(height: 12),
+                    const Row(
+                      children: [
+                        Expanded(child: Divider()),
+                        Padding(
+                          padding: EdgeInsets.symmetric(horizontal: 14),
+                          child: Text(
+                            'or continue with',
+                            style: TextStyle(color: Color(0xFF64748B)),
+                          ),
                         ),
-                      ),
-                      Expanded(child: Divider()),
-                    ],
-                  ),
-                  const SizedBox(height: 20),
-                  SocialSignInButtons(
-                    available: _providers,
-                    busy: _busy,
-                    loading: _loadingProviders,
-                    onSelected: _socialSubmit,
-                  ),
+                        Expanded(child: Divider()),
+                      ],
+                    ),
+                    const SizedBox(height: 10),
+                    SocialSignInButtons(
+                      available: _providers,
+                      busy: _busy,
+                      loading: _loadingProviders,
+                      onSelected: _socialSubmit,
+                    ),
+                  ],
                   if (widget.allowRegistration) ...[
                     const SizedBox(height: 16),
                     TextButton(

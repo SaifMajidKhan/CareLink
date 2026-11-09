@@ -1,12 +1,10 @@
 import 'package:flutter/material.dart';
 
-import '../../core/theme/app_theme.dart';
 import '../models/day_summary.dart';
 import '../utils/care_format.dart';
-import '../widgets/care_action_row.dart';
 import '../widgets/care_card.dart';
-import '../widgets/care_empty_state.dart';
 import '../widgets/care_notice.dart';
+import '../widgets/dose_summary_row.dart';
 
 class TodayView extends StatelessWidget {
   const TodayView({
@@ -14,141 +12,124 @@ class TodayView extends StatelessWidget {
     required this.name,
     required this.doses,
     required this.doseBuilder,
+    required this.onDoseDetails,
     required this.onAdd,
-    required this.onReadings,
-    required this.onCare,
     this.updated,
     this.pending = 0,
     this.busy = false,
     this.unavailable = false,
     this.onRetry,
   });
+
   final String name;
   final List<Map<String, dynamic>> doses;
   final Widget Function(Map<String, dynamic>) doseBuilder;
-  final VoidCallback onAdd, onReadings, onCare;
+  final ValueChanged<Map<String, dynamic>> onDoseDetails;
+  final VoidCallback onAdd;
   final String? updated;
   final int pending;
-  final bool busy;
-  final bool unavailable;
+  final bool busy, unavailable;
   final VoidCallback? onRetry;
+
+  Map<String, dynamic>? _focusDose(DateTime now) {
+    Map<String, dynamic>? pendingDose;
+    Map<String, dynamic>? upcoming;
+    for (final dose in doses) {
+      if (dose['pending'] == true) {
+        pendingDose ??= dose;
+        continue;
+      }
+      if (dose['report'] != null) continue;
+      final scheduled = DateTime.tryParse('${dose['scheduled_at']}');
+      if (scheduled == null) continue;
+      if (!scheduled.isAfter(now)) return dose;
+      upcoming ??= dose;
+    }
+    return pendingDose ?? upcoming;
+  }
 
   @override
   Widget build(BuildContext context) {
+    final now = DateTime.now();
     final summary = DaySummary(doses);
     final loading = busy && updated == null;
+    final focus = _focusDose(now);
+    final firstName = name.trim().isEmpty
+        ? 'there'
+        : name.trim().split(' ').first;
     return ListView(
       key: const PageStorageKey('patient-today'),
       physics: const AlwaysScrollableScrollPhysics(),
-      padding: const EdgeInsets.fromLTRB(20, 20, 20, 24),
+      padding: const EdgeInsets.fromLTRB(16, 10, 16, 18),
       children: [
-        Text(
-          CareFormat.longDate(DateTime.now()),
-          style: Theme.of(context).textTheme.bodySmall,
-        ),
-        const SizedBox(height: 7),
-        Text(
-          'Hello, ${name.trim().isEmpty ? 'there' : name.trim().split(' ').first}',
-          maxLines: 2,
-          overflow: TextOverflow.ellipsis,
-          style: Theme.of(context).textTheme.headlineMedium,
-        ),
-        const SizedBox(height: 8),
-        const Text('A little support for your daily routine.'),
-        const SizedBox(height: 16),
-        CareSyncLine(updated: updated, pending: pending, busy: busy),
-        if (doses.isEmpty) ...[
-          const SizedBox(height: 28),
-          CareEmptyState(
-            icon: loading
-                ? Icons.sync_rounded
-                : unavailable
-                ? Icons.cloud_off_rounded
-                : Icons.medication_outlined,
-            title: loading
-                ? 'Bringing your routine together'
-                : unavailable
-                ? 'Your schedule is not available yet'
-                : 'Make room for a simpler routine',
-            message: loading
-                ? 'Your saved medicines will appear here.'
-                : unavailable
-                ? 'Refresh when you are connected to see the latest saved schedule.'
-                : 'Add your first medicine to keep your schedule and daily updates together.',
-            actionLabel: loading
-                ? null
-                : unavailable
-                ? 'Refresh updates'
-                : 'Add your first medicine',
-            onAction: loading
-                ? null
-                : unavailable
-                ? onRetry
-                : onAdd,
+        Semantics(
+          header: true,
+          child: Text(
+            'Hello, $firstName',
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            style: Theme.of(context).textTheme.headlineSmall,
           ),
-        ] else ...[
-          const SizedBox(height: 20),
+        ),
+        Text(
+          CareFormat.longDate(now),
+          style: Theme.of(context).textTheme.bodyMedium,
+        ),
+        const SizedBox(height: 10),
+        if (doses.isEmpty) ...[
           CareCard(
-            color: AppTheme.tealSoft,
-            borderColor: const Color(0xFFCCFBF1),
-            padding: const EdgeInsets.all(16),
-            child: Row(
+            padding: const EdgeInsets.all(14),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                const Icon(Icons.fact_check_outlined, color: AppTheme.teal),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Text(
-                    '${summary.reported} of ${summary.total} dose updates saved',
-                    style: const TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600,
-                      color: AppTheme.tealDark,
+                Text(
+                  loading
+                      ? 'Loading your medicines…'
+                      : unavailable
+                      ? 'Schedule unavailable'
+                      : 'No medicines scheduled today',
+                  style: Theme.of(context).textTheme.titleMedium,
+                ),
+                if (!loading) ...[
+                  const SizedBox(height: 10),
+                  FilledButton(
+                    onPressed: unavailable ? onRetry : onAdd,
+                    child: Text(
+                      unavailable
+                          ? 'Refresh updates'
+                          : 'Add your first medicine',
                     ),
                   ),
-                ),
+                ],
               ],
             ),
           ),
-          CareSectionHeading(
-            'Today’s medicines',
-            action: IconButton(
-              tooltip: 'Add medicine',
-              onPressed: onAdd,
-              icon: const Icon(Icons.add_rounded),
-            ),
-          ),
-          for (final dose in doses) ...[
-            doseBuilder(dose),
-            const SizedBox(height: 14),
+        ] else ...[
+          if (focus != null) ...[
+            doseBuilder(focus),
+            const SizedBox(height: 10),
           ],
-          const CareNotice(
-            'No update stays Not confirmed. It does not mean you skipped your medicine.',
-          ),
+          if (doses.length > 1 || focus == null)
+            CareCard(
+              padding: EdgeInsets.zero,
+              child: ExpansionTile(
+                key: const PageStorageKey('today-dose-list'),
+                title: Text('All doses (${doses.length})'),
+                subtitle: Text('${summary.reported} updates recorded'),
+                children: [
+                  for (final dose in doses) ...[
+                    const Divider(),
+                    DoseSummaryRow(
+                      dose: dose,
+                      onTap: () => onDoseDetails(dose),
+                    ),
+                  ],
+                ],
+              ),
+            ),
         ],
-        const CareSectionHeading('Keep your care connected'),
-        CareCard(
-          padding: EdgeInsets.zero,
-          child: Column(
-            children: [
-              CareActionRow(
-                icon: Icons.people_outline_rounded,
-                title: 'My care team',
-                subtitle: 'People you choose to share with',
-                onTap: onCare,
-              ),
-              const Padding(
-                padding: EdgeInsets.symmetric(horizontal: 18),
-                child: Divider(),
-              ),
-              CareActionRow(
-                icon: Icons.monitor_heart_outlined,
-                title: 'Health readings',
-                subtitle: 'Save and view your measurements',
-                onTap: onReadings,
-              ),
-            ],
-          ),
-        ),
+        const SizedBox(height: 10),
+        CareSyncLine(updated: updated, pending: pending, busy: busy),
       ],
     );
   }
