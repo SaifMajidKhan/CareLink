@@ -1,5 +1,6 @@
 from fastapi import FastAPI, HTTPException
 from app.api.auth import router as auth_router
+from app.api.medications import router as medications_router
 
 from app.database import check_database_connection
 
@@ -12,6 +13,7 @@ app = FastAPI(
     version="0.2.0",
 )
 app.include_router(auth_router)
+app.include_router(medications_router)
 
 
 @app.get("/")

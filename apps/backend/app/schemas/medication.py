@@ -11,8 +11,8 @@ class MedicationCreate(BaseModel):
 
     name: str = Field(min_length=1, max_length=150)
     dosage: str = Field(min_length=1, max_length=100)
-    condition: str = Field(min_length=1, max_length=150)
-    instructions: str | None = None
+    condition: str | None = Field(default=None, max_length=100)
+    instructions: str | None = Field(default=None, max_length=500)
     start_date: date
     end_date: date | None = None
 
@@ -32,9 +32,9 @@ class MedicationRead(BaseModel):
     patient_id: UUID
     name: str
     dosage: str
-    condition: str
+    condition: str | None
     instructions: str | None
     start_date: date
     end_date: date | None
-    active: bool
+    is_active: bool
     created_at: datetime
