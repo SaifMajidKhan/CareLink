@@ -27,3 +27,19 @@ class UserRead(BaseModel):
     role: UserRole
     is_active: bool
     created_at: datetime
+
+
+class UserLogin(BaseModel):
+    """Data accepted when logging in."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    email: EmailStr
+    password: str
+
+
+class TokenResponse(BaseModel):
+    """JWT token returned after successful login."""
+
+    access_token: str
+    token_type: str = "bearer"
