@@ -38,3 +38,15 @@ class MedicationRead(BaseModel):
     end_date: date | None
     is_active: bool
     created_at: datetime
+
+class MedicationUpdate(BaseModel):
+    """Optional fields accepted when updating a medication."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    name: str | None = Field(default=None, min_length=1, max_length=150)
+    dosage: str | None = Field(default=None, min_length=1, max_length=100)
+    condition: str | None = Field(default=None, max_length=100)
+    instructions: str | None = Field(default=None, max_length=500)
+    start_date: date | None = None
+    end_date: date | None = None

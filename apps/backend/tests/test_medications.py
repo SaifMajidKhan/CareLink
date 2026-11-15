@@ -220,3 +220,162 @@ def test_non_patient_role_cannot_create_medication(client):
     )
 
     assert response.status_code == 403
+
+def test_patient_can_update_medication(client):
+    test_client, _ = client
+    patient = register_and_login(
+        test_client, "update@example.com"
+    )
+
+    created = test_client.post(
+        "/medications",
+        json=medication_payload(),
+        headers=patient["headers"],
+    )
+
+    medication_id = created.json()["id"]
+
+    response = test_client.patch(
+        f"/medications/{medication_id}",
+        json={"dosage": "2 tablets"},
+        headers=patient["headers"],
+    )
+
+    assert response.status_code == 200
+    assert response.json()["dosage"] == "2 tablets"
+    assert response.json()["name"] == "Test Medication"
+
+
+def test_patient_can_deactivate_medication(client):
+    test_client, _ = client
+    patient = register_and_login(
+        test_client, "deactivate@example.com"
+    )
+
+    created = test_client.post(
+        "/medications",
+        json=medication_payload(),
+        headers=patient["headers"],
+    )
+
+    medication_id = created.json()["id"]
+
+    response = test_client.patch(
+        f"/medications/{medication_id}/deactivate",
+        headers=patient["headers"],
+    )
+
+    assert response.status_code == 200
+    assert response.json()["is_active"] is False
+
+    fetched = test_client.get(
+        f"/medications/{medication_id}",
+        headers=patient["headers"],
+    )
+
+    assert fetched.status_code == 200
+    assert fetched.json()["is_active"] is False
+
+
+def test_patient_cannot_update_another_patients_medication(client):
+    test_client, _ = client
+
+    owner = register_and_login(
+        test_client, "updateowner@example.com"
+    )
+    other = register_and_login(
+        test_client, "updateother@example.com"
+    )
+
+    created = test_client.post(
+        "/medications",
+        json=medication_payload(),
+        headers=owner["headers"],
+    )
+
+    medication_id = created.json()["id"]
+
+    response = test_client.patch(
+        f"/medications/{medication_id}",
+        json={"dosage": "5 tablets"},
+        headers=other["headers"],
+    )
+
+    assert response.status_code == 404
+
+
+def test_patient_cannot_deactivate_another_patients_medication(client):
+    test_client, _ = client
+
+    owner = register_and_login(
+        test_client, "deactivateowner@example.com"
+    )
+    other = register_and_login(
+        test_client, "deactivateother@example.com"
+    )
+
+    created = test_client.post(
+        "/medications",
+        json=medication_payload(),
+        headers=owner["headers"],
+    )
+
+    medication_id = created.json()["id"]
+
+    response = test_client.patch(
+        f"/medications/{medication_id}/deactivate",
+        headers=other["headers"],
+    )
+
+    assert response.status_code == 404
+
+
+def test_invalid_updated_dates_rejected(client):
+    test_client, _ = client
+    patient = register_and_login(
+        test_client, "invalidupdate@example.com"
+    )
+
+    created = test_client.post(
+        "/medications",
+        json=medication_payload(),
+        headers=patient["headers"],
+    )
+
+    medication_id = created.json()["id"]
+
+    response = test_client.patch(
+        f"/medications/{medication_id}",
+        json={"end_date": "2026-11-14"},
+        headers=patient["headers"],
+    )
+
+    assert response.status_code == 422
+
+
+def test_inactive_medication_cannot_be_edited(client):
+    test_client, _ = client
+    patient = register_and_login(
+        test_client, "inactiveupdate@example.com"
+    )
+
+    created = test_client.post(
+        "/medications",
+        json=medication_payload(),
+        headers=patient["headers"],
+    )
+
+    medication_id = created.json()["id"]
+
+    test_client.patch(
+        f"/medications/{medication_id}/deactivate",
+        headers=patient["headers"],
+    )
+
+    response = test_client.patch(
+        f"/medications/{medication_id}",
+        json={"dosage": "3 tablets"},
+        headers=patient["headers"],
+    )
+
+    assert response.status_code == 409

@@ -4,7 +4,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.models import Medication
-from app.schemas.medication import MedicationCreate
+from app.schemas.medication import MedicationCreate, MedicationUpdate
 
 
 def create_medication(
@@ -54,3 +54,49 @@ def get_patient_medication(
             Medication.patient_id == patient_id,
         )
     )
+
+class InvalidMedicationDatesError(Exception):
+    """Medication end date cannot precede its start date."""
+
+
+def update_medication(
+    db: Session,
+    medication: Medication,
+    data: MedicationUpdate,
+) -> Medication:
+    """Update a medication while preserving date consistency."""
+
+    changes = data.model_dump(exclude_unset=True)
+
+    # These two fields cannot be null in the database.
+    for field in ("name", "dosage", "start_date"):
+        if field in changes and changes[field] is None:
+            raise ValueError(f"{field} cannot be null")
+
+    new_start = changes.get("start_date", medication.start_date)
+    new_end = changes.get("end_date", medication.end_date)
+
+    if new_end is not None and new_end < new_start:
+        raise InvalidMedicationDatesError()
+
+    for field, value in changes.items():
+        setattr(medication, field, value)
+
+    db.commit()
+    db.refresh(medication)
+
+    return medication
+
+
+def deactivate_medication(
+    db: Session,
+    medication: Medication,
+) -> Medication:
+    """Mark a medication as inactive without deleting it."""
+
+    medication.is_active = False
+
+    db.commit()
+    db.refresh(medication)
+
+    return medication

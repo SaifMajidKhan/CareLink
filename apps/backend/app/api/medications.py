@@ -6,11 +6,18 @@ from sqlalchemy.orm import Session
 from app.core.dependencies import get_current_user
 from app.database import get_db
 from app.models import User, UserRole
-from app.schemas.medication import MedicationCreate, MedicationRead
+from app.schemas.medication import (
+    MedicationCreate,
+    MedicationRead,
+    MedicationUpdate,
+)
 from app.services.medication_service import (
     create_medication,
     get_patient_medication,
     list_patient_medications,
+    InvalidMedicationDatesError,
+    update_medication,
+    deactivate_medication,
 )
 
 router = APIRouter(
@@ -73,3 +80,70 @@ def get_medication(
         )
 
     return medication
+
+@router.patch(
+    "/{medication_id}",
+    response_model=MedicationRead,
+)
+def edit_medication(
+    medication_id: UUID,
+    data: MedicationUpdate,
+    db: Session = Depends(get_db),
+    patient: User = Depends(require_patient),
+):
+    medication = get_patient_medication(
+        db,
+        patient.id,
+        medication_id,
+    )
+
+    if medication is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Medication not found",
+        )
+
+    if not medication.is_active:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Inactive medication cannot be edited",
+        )
+
+    try:
+        return update_medication(db, medication, data)
+
+    except InvalidMedicationDatesError:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="End date cannot be earlier than start date",
+        )
+
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=str(exc),
+        )
+
+
+@router.patch(
+    "/{medication_id}/deactivate",
+    response_model=MedicationRead,
+)
+def deactivate_my_medication(
+    medication_id: UUID,
+    db: Session = Depends(get_db),
+    patient: User = Depends(require_patient),
+):
+    medication = get_patient_medication(
+        db,
+        patient.id,
+        medication_id,
+    )
+
+    if medication is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Medication not found",
+        )
+
+    return deactivate_medication(db, medication)
