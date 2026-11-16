@@ -379,3 +379,155 @@ def test_inactive_medication_cannot_be_edited(client):
     )
 
     assert response.status_code == 409
+
+def test_deactivation_also_deactivates_schedules(client):
+    test_client, _ = client
+    patient = register_and_login(
+        test_client, "lifecycle1@example.com"
+    )
+
+    created = test_client.post(
+        "/medications",
+        json=medication_payload(),
+        headers=patient["headers"],
+    )
+    assert created.status_code == 201
+
+    medication_id = created.json()["id"]
+
+    schedule = test_client.post(
+        f"/medications/{medication_id}/schedules",
+        json={
+            "scheduled_time": "08:00:00",
+            "days_of_week": [0, 2, 4],
+            "start_date": "2026-11-15",
+            "end_date": None,
+        },
+        headers=patient["headers"],
+    )
+    assert schedule.status_code == 201
+
+    deactivated = test_client.patch(
+        f"/medications/{medication_id}/deactivate",
+        headers=patient["headers"],
+    )
+    assert deactivated.status_code == 200
+    assert deactivated.json()["is_active"] is False
+
+    schedules = test_client.get(
+        f"/medications/{medication_id}/schedules",
+        headers=patient["headers"],
+    )
+
+    assert schedules.status_code == 200
+    assert len(schedules.json()) == 1
+    assert schedules.json()[0]["is_active"] is False
+
+
+def test_medication_start_date_cannot_invalidate_schedule(client):
+    test_client, _ = client
+    patient = register_and_login(
+        test_client, "lifecycle2@example.com"
+    )
+
+    created = test_client.post(
+        "/medications",
+        json=medication_payload(),
+        headers=patient["headers"],
+    )
+    assert created.status_code == 201
+
+    medication_id = created.json()["id"]
+
+    schedule = test_client.post(
+        f"/medications/{medication_id}/schedules",
+        json={
+            "scheduled_time": "08:00:00",
+            "days_of_week": [],
+            "start_date": "2026-11-15",
+            "end_date": None,
+        },
+        headers=patient["headers"],
+    )
+    assert schedule.status_code == 201
+
+    response = test_client.patch(
+        f"/medications/{medication_id}",
+        json={"start_date": "2026-11-18"},
+        headers=patient["headers"],
+    )
+
+    assert response.status_code == 409
+
+
+def test_medication_end_date_cannot_invalidate_schedule(client):
+    test_client, _ = client
+    patient = register_and_login(
+        test_client, "lifecycle3@example.com"
+    )
+
+    created = test_client.post(
+        "/medications",
+        json=medication_payload(),
+        headers=patient["headers"],
+    )
+    assert created.status_code == 201
+
+    medication_id = created.json()["id"]
+
+    schedule = test_client.post(
+        f"/medications/{medication_id}/schedules",
+        json={
+            "scheduled_time": "08:00:00",
+            "days_of_week": [],
+            "start_date": "2026-11-15",
+            "end_date": None,
+        },
+        headers=patient["headers"],
+    )
+    assert schedule.status_code == 201
+
+    response = test_client.patch(
+        f"/medications/{medication_id}",
+        json={"end_date": "2026-11-20"},
+        headers=patient["headers"],
+    )
+
+    assert response.status_code == 409
+
+
+def test_dosage_update_still_works_with_active_schedule(client):
+    test_client, _ = client
+    patient = register_and_login(
+        test_client, "lifecycle4@example.com"
+    )
+
+    created = test_client.post(
+        "/medications",
+        json=medication_payload(),
+        headers=patient["headers"],
+    )
+    assert created.status_code == 201
+
+    medication_id = created.json()["id"]
+
+    schedule = test_client.post(
+        f"/medications/{medication_id}/schedules",
+        json={
+            "scheduled_time": "08:00:00",
+            "days_of_week": [0, 2, 4],
+            "start_date": "2026-11-15",
+            "end_date": None,
+        },
+        headers=patient["headers"],
+    )
+    assert schedule.status_code == 201
+
+    response = test_client.patch(
+        f"/medications/{medication_id}",
+        json={"dosage": "2 tablets"},
+        headers=patient["headers"],
+    )
+
+    assert response.status_code == 200
+    assert response.json()["dosage"] == "2 tablets"

@@ -18,6 +18,7 @@ from app.services.medication_service import (
     InvalidMedicationDatesError,
     update_medication,
     deactivate_medication,
+    MedicationScheduleConflictError,
 )
 
 router = APIRouter(
@@ -116,6 +117,12 @@ def edit_medication(
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
             detail="End date cannot be earlier than start date",
+        )
+    
+    except MedicationScheduleConflictError:
+        raise HTTPException(
+            status_code=409,
+            detail="Medication dates conflict with active schedules",
         )
 
     except ValueError as exc:

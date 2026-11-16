@@ -58,17 +58,19 @@ def get_patient_medication(
 class InvalidMedicationDatesError(Exception):
     """Medication end date cannot precede its start date."""
 
+class MedicationScheduleConflictError(Exception):
+    """Medication date changes conflict with existing schedules."""
+
 
 def update_medication(
     db: Session,
     medication: Medication,
     data: MedicationUpdate,
 ) -> Medication:
-    """Update a medication while preserving date consistency."""
+    """Update medication without invalidating existing schedules."""
 
     changes = data.model_dump(exclude_unset=True)
 
-    # These two fields cannot be null in the database.
     for field in ("name", "dosage", "start_date"):
         if field in changes and changes[field] is None:
             raise ValueError(f"{field} cannot be null")
@@ -78,6 +80,25 @@ def update_medication(
 
     if new_end is not None and new_end < new_start:
         raise InvalidMedicationDatesError()
+
+    # Check active schedules before changing medication dates.
+    if "start_date" in changes or "end_date" in changes:
+        for schedule in medication.schedules:
+            if not schedule.is_active:
+                continue
+
+            if schedule.start_date < new_start:
+                raise MedicationScheduleConflictError()
+
+            if new_end is not None:
+                if schedule.start_date > new_end:
+                    raise MedicationScheduleConflictError()
+
+                if (
+                    schedule.end_date is None
+                    or schedule.end_date > new_end
+                ):
+                    raise MedicationScheduleConflictError()
 
     for field, value in changes.items():
         setattr(medication, field, value)
@@ -92,9 +113,12 @@ def deactivate_medication(
     db: Session,
     medication: Medication,
 ) -> Medication:
-    """Mark a medication as inactive without deleting it."""
+    """Deactivate medication and all associated schedules."""
 
     medication.is_active = False
+
+    for schedule in medication.schedules:
+        schedule.is_active = False
 
     db.commit()
     db.refresh(medication)
