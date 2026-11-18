@@ -3,6 +3,7 @@ from app.api.auth import router as auth_router
 from app.api.medications import router as medications_router
 from app.api.schedules import router as schedules_router
 from app.api.adherence import router as adherence_router
+from app.api.analytics import router as analytics_router
 
 from app.database import check_database_connection
 
@@ -18,6 +19,7 @@ app.include_router(auth_router)
 app.include_router(medications_router)
 app.include_router(schedules_router)
 app.include_router(adherence_router)
+app.include_router(analytics_router)
 
 
 @app.get("/")

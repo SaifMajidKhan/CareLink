@@ -5,7 +5,7 @@ from sqlalchemy.orm import Session
 
 from app.models import Medication
 from app.schemas.medication import MedicationCreate, MedicationUpdate
-
+from datetime import datetime, timezone
 
 def create_medication(
     db: Session,
@@ -113,11 +113,17 @@ def deactivate_medication(
     db: Session,
     medication: Medication,
 ) -> Medication:
-    """Deactivate medication and all associated schedules."""
+    """Deactivate medication and schedules with one UTC timestamp."""
+
+    if medication.deactivated_at is None:
+        medication.deactivated_at = datetime.now(timezone.utc)
 
     medication.is_active = False
 
     for schedule in medication.schedules:
+        if schedule.deactivated_at is None:
+            schedule.deactivated_at = medication.deactivated_at
+
         schedule.is_active = False
 
     db.commit()
