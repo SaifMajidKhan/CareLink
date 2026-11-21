@@ -3,6 +3,7 @@ from app.models.entities import (
     AdherenceEvent,
     AdherenceStatus,
     AuditLog,
+    CaregiverAlert,
     Medication,
     MedicationSchedule,
     PatientCaregiver,
@@ -20,4 +21,5 @@ __all__ = [
     "AdherenceEvent",
     "AdherenceStatus",
     "AuditLog",
+    "CaregiverAlert"
 ]
