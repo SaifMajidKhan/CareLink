@@ -9,6 +9,9 @@ from app.models import User
 from app.services.analytics_service import (
     get_patient_adherence_summary,
 )
+from app.services.risk_service import (
+    get_patient_risk_assessment,
+)
 
 router = APIRouter(
     prefix="/analytics",
@@ -46,4 +49,22 @@ def get_adherence_analytics(
         patient_id=patient.id,
         start_date=start_date,
         end_date=end_date,
+    )
+
+@router.get("/risk")
+def get_risk_analytics(
+    db: Session = Depends(get_db),
+    patient: User = Depends(require_patient),
+):
+    """
+    Return an explainable, rule-based adherence-risk
+    assessment for the authenticated patient.
+
+    The assessment uses the latest 14 days of
+    expected medication dose occurrences.
+    """
+
+    return get_patient_risk_assessment(
+        db=db,
+        patient_id=patient.id,
     )
