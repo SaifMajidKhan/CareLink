@@ -5,7 +5,9 @@ from app.api.schedules import router as schedules_router
 from app.api.adherence import router as adherence_router
 from app.api.analytics import router as analytics_router
 from app.api.caregivers import router as caregivers_router
-
+from app.api.caregiver_dashboard import (
+    router as caregiver_dashboard_router,
+)
 from app.database import check_database_connection
 
 app = FastAPI(
@@ -22,6 +24,7 @@ app.include_router(schedules_router)
 app.include_router(adherence_router)
 app.include_router(analytics_router)
 app.include_router(caregivers_router)
+app.include_router(caregiver_dashboard_router)
 
 
 @app.get("/")
