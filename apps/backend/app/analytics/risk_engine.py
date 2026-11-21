@@ -1,5 +1,6 @@
 from dataclasses import dataclass
 from datetime import datetime, timezone
+from uuid import UUID
 
 from app.models import AdherenceStatus
 
@@ -8,6 +9,7 @@ from app.models import AdherenceStatus
 class RiskDose:
     scheduled_for: datetime
     status: AdherenceStatus
+    schedule_id: UUID | None = None
 
 
 def calculate_risk(doses: list[RiskDose]) -> dict:

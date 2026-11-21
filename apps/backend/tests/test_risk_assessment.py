@@ -1,4 +1,5 @@
 from datetime import datetime, timedelta, timezone
+from uuid import UUID
 
 import pytest
 
@@ -137,3 +138,38 @@ def test_naive_dose_timestamp_rejected():
 
     with pytest.raises(ValueError, match="timezone"):
         assess_adherence_risk(doses, AS_OF)
+
+def test_multiple_schedules_same_time_are_counted_separately():
+    timestamp = AS_OF - timedelta(days=1)
+
+    schedule_a = UUID("00000000-0000-4000-8000-000000000001")
+    schedule_b = UUID("00000000-0000-4000-8000-000000000002")
+
+    doses = [
+        RiskDose(
+            scheduled_for=timestamp,
+            status=T,
+            schedule_id=schedule_a,
+        ),
+        RiskDose(
+            scheduled_for=timestamp,
+            status=M,
+            schedule_id=schedule_b,
+        ),
+        RiskDose(
+            scheduled_for=timestamp - timedelta(days=1),
+            status=T,
+            schedule_id=schedule_a,
+        ),
+        RiskDose(
+            scheduled_for=timestamp - timedelta(days=1),
+            status=T,
+            schedule_id=schedule_b,
+        ),
+    ]
+
+    result = assess_adherence_risk(doses, AS_OF)
+
+    assert result["metrics"]["expected"] == 4
+    assert result["metrics"]["taken"] == 3
+    assert result["metrics"]["missed"] == 1
