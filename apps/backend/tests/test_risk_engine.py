@@ -1,4 +1,5 @@
 from datetime import datetime, timedelta, timezone
+from uuid import UUID
 
 import pytest
 
@@ -85,3 +86,87 @@ def test_naive_timestamp_rejected():
 
     with pytest.raises(ValueError, match="timezone"):
         calculate_risk(doses)
+
+def test_missed_streak_is_tracked_per_schedule():
+    from datetime import datetime, timedelta, timezone
+
+    schedule_a = UUID(
+        "00000000-0000-4000-8000-000000000001"
+    )
+    schedule_b = UUID(
+        "00000000-0000-4000-8000-000000000002"
+    )
+
+    start = datetime(
+        2026, 11, 15, 8, tzinfo=timezone.utc
+    )
+
+    doses = []
+
+    for day in range(3):
+        timestamp = start + timedelta(days=day)
+
+        doses.append(
+            RiskDose(
+                scheduled_for=timestamp,
+                status=AdherenceStatus.MISSED,
+                schedule_id=schedule_a,
+            )
+        )
+
+        doses.append(
+            RiskDose(
+                scheduled_for=timestamp,
+                status=AdherenceStatus.TAKEN,
+                schedule_id=schedule_b,
+            )
+        )
+
+    result = calculate_risk(doses)
+
+    assert result["metrics"]["expected"] == 6
+    assert result["metrics"]["missed"] == 3
+    assert result["metrics"]["longest_missed_streak"] == 3
+    assert result["risk_level"] == "high"
+
+
+def test_misses_on_different_schedules_do_not_form_streak():
+    from datetime import datetime, timedelta, timezone
+
+    schedule_a = UUID(
+        "00000000-0000-4000-8000-000000000001"
+    )
+    schedule_b = UUID(
+        "00000000-0000-4000-8000-000000000002"
+    )
+
+    start = datetime(
+        2026, 11, 15, 8, tzinfo=timezone.utc
+    )
+
+    doses = [
+        RiskDose(
+            scheduled_for=start,
+            status=AdherenceStatus.MISSED,
+            schedule_id=schedule_a,
+        ),
+        RiskDose(
+            scheduled_for=start,
+            status=AdherenceStatus.TAKEN,
+            schedule_id=schedule_b,
+        ),
+        RiskDose(
+            scheduled_for=start + timedelta(days=1),
+            status=AdherenceStatus.TAKEN,
+            schedule_id=schedule_a,
+        ),
+        RiskDose(
+            scheduled_for=start + timedelta(days=1),
+            status=AdherenceStatus.MISSED,
+            schedule_id=schedule_b,
+        ),
+    ]
+
+    result = calculate_risk(doses)
+
+    assert result["metrics"]["longest_missed_streak"] == 1
