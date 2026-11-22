@@ -12,6 +12,9 @@ from app.services.analytics_service import (
 from app.services.risk_service import (
     get_patient_risk_assessment,
 )
+from app.services.alert_generation_service import (
+    generate_patient_caregiver_alerts,
+)
 
 router = APIRouter(
     prefix="/analytics",
@@ -65,6 +68,23 @@ def get_risk_analytics(
     """
 
     return get_patient_risk_assessment(
+        db=db,
+        patient_id=patient.id,
+    )
+
+@router.post("/risk/evaluate-alerts")
+def evaluate_patient_caregiver_alerts(
+    db: Session = Depends(get_db),
+    patient: User = Depends(require_patient),
+):
+    """
+    Evaluate adherence risk for the authenticated patient
+    and create deduplicated in-app caregiver alerts.
+
+    This endpoint does not send external notifications.
+    """
+
+    return generate_patient_caregiver_alerts(
         db=db,
         patient_id=patient.id,
     )
