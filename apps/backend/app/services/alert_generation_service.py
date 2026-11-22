@@ -32,7 +32,7 @@ def generate_patient_caregiver_alerts(
         "risk_level": assessment["risk_level"],
         "risk_score": assessment["risk_score"],
         "should_alert": decision.should_alert,
-        "caregivers_notified": 0,
+        "caregivers_processed": 0,
         "alerts_created": 0,
         "alerts_existing": 0,
     }
@@ -80,7 +80,7 @@ def generate_patient_caregiver_alerts(
             message=decision.message,
         )
 
-        result["caregivers_notified"] += 1
+        result["caregivers_processed"] += 1
 
         if existing is None:
             result["alerts_created"] += 1
