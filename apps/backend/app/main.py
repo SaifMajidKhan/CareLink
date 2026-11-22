@@ -8,6 +8,9 @@ from app.api.caregivers import router as caregivers_router
 from app.api.caregiver_dashboard import (
     router as caregiver_dashboard_router,
 )
+from app.api.caregiver_alerts import (
+    router as caregiver_alerts_router,
+)
 from app.database import check_database_connection
 
 app = FastAPI(
@@ -25,6 +28,7 @@ app.include_router(adherence_router)
 app.include_router(analytics_router)
 app.include_router(caregivers_router)
 app.include_router(caregiver_dashboard_router)
+app.include_router(caregiver_alerts_router)
 
 
 @app.get("/")
