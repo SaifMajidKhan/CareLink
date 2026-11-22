@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session
 from app.core.dependencies import get_current_user
 from app.database import get_db
 from app.models import User, UserRole
+from app.services.audit_service import record_audit_event
 from app.services.analytics_service import (
     get_patient_adherence_summary,
 )
@@ -95,12 +96,28 @@ def caregiver_patient_adherence(
             detail="Start date cannot be in the future",
         )
 
-    return get_patient_adherence_summary(
+    summary = get_patient_adherence_summary(
         db=db,
         patient_id=patient_id,
         start_date=start_date,
         end_date=end_date,
     )
+
+    record_audit_event(
+        db=db,
+        actor_user_id=caregiver.id,
+        action="caregiver.adherence_viewed",
+        entity_type="patient",
+        entity_id=patient_id,
+        details={
+            "start_date": start_date.isoformat(),
+            "end_date": end_date.isoformat(),
+        },
+    )
+
+    db.commit()
+
+    return summary
 
 
 @router.get("/patients/{patient_id}/risk")
@@ -117,7 +134,20 @@ def caregiver_patient_risk(
         patient_id,
     )
 
-    return get_patient_risk_assessment(
+    assessment = get_patient_risk_assessment(
         db=db,
         patient_id=patient_id,
     )
+
+    record_audit_event(
+        db=db,
+        actor_user_id=caregiver.id,
+        action="caregiver.risk_viewed",
+        entity_type="patient",
+        entity_id=patient_id,
+        details={},
+    )
+
+    db.commit()
+
+    return assessment
