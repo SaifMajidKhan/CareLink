@@ -10,7 +10,7 @@ from sqlalchemy.orm import Session
 
 from app.models import CaregiverAlert, PatientCaregiver
 from app.services.caregiver_service import caregiver_has_access
-
+from app.services.audit_service import record_audit_event
 
 class AlertAccessDeniedError(Exception):
     pass
@@ -180,6 +180,18 @@ def acknowledge_caregiver_alert(
     if not alert.is_acknowledged:
         alert.is_acknowledged = True
         alert.acknowledged_at = datetime.now(timezone.utc)
+
+        record_audit_event(
+            db=db,
+            actor_user_id=caregiver_id,
+            action="caregiver_alert.acknowledged",
+            entity_type="caregiver_alert",
+            entity_id=alert.id,
+            details={
+                "patient_id": str(alert.patient_id),
+                "severity": alert.severity,
+            },
+        )
 
         db.commit()
         db.refresh(alert)
