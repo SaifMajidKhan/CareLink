@@ -88,6 +88,7 @@ def evaluate_patient_caregiver_alerts(
     result = generate_patient_caregiver_alerts(
         db=db,
         patient_id=patient.id,
+        commit=False,
     )
 
     record_audit_event(

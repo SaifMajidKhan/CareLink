@@ -55,6 +55,7 @@ def create_caregiver_alert(
     severity: str,
     title: str,
     message: str,
+    commit: bool = True,
 ) -> CaregiverAlert:
     """
     Create an alert for an authorized caregiver.
@@ -94,6 +95,12 @@ def create_caregiver_alert(
     )
 
     db.add(alert)
+
+    if not commit:
+        # Flush changes without committing the transaction.
+        # The caller will commit alerts and audit records together.
+        db.flush()
+        return alert
 
     try:
         db.commit()

@@ -12,6 +12,7 @@ from app.services.risk_service import get_patient_risk_assessment
 def generate_patient_caregiver_alerts(
     db: Session,
     patient_id: UUID,
+    commit: bool = True,
 ) -> dict:
     """
     Evaluate a patient's adherence risk and generate
@@ -78,6 +79,7 @@ def generate_patient_caregiver_alerts(
             severity=decision.severity,
             title=decision.title,
             message=decision.message,
+            commit=False,
         )
 
         result["caregivers_processed"] += 1
@@ -86,5 +88,8 @@ def generate_patient_caregiver_alerts(
             result["alerts_created"] += 1
         else:
             result["alerts_existing"] += 1
+
+        if commit:
+            db.commit()
 
     return result
