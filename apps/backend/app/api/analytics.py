@@ -6,6 +6,7 @@ from sqlalchemy.orm import Session
 from app.api.medications import require_patient
 from app.database import get_db
 from app.models import User
+from app.services.audit_service import record_audit_event
 from app.services.analytics_service import (
     get_patient_adherence_summary,
 )
@@ -78,13 +79,31 @@ def evaluate_patient_caregiver_alerts(
     patient: User = Depends(require_patient),
 ):
     """
-    Evaluate adherence risk for the authenticated patient
-    and create deduplicated in-app caregiver alerts.
+    Evaluate adherence risk and generate caregiver alerts.
 
-    This endpoint does not send external notifications.
+    Record the evaluation in the audit trail.
+    No external notifications are sent.
     """
 
-    return generate_patient_caregiver_alerts(
+    result = generate_patient_caregiver_alerts(
         db=db,
         patient_id=patient.id,
     )
+
+    record_audit_event(
+        db=db,
+        actor_user_id=patient.id,
+        action="patient.risk_alerts_evaluated",
+        entity_type="patient",
+        entity_id=patient.id,
+        details={
+            "should_alert": result["should_alert"],
+            "alerts_created": result["alerts_created"],
+            "alerts_existing": result["alerts_existing"],
+            "caregivers_processed": result["caregivers_processed"],
+        },
+    )
+
+    db.commit()
+
+    return result
