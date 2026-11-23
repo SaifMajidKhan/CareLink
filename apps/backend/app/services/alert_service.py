@@ -94,13 +94,15 @@ def create_caregiver_alert(
         is_acknowledged=False,
     )
 
-    db.add(alert)
-
     if not commit:
-        # Flush changes without committing the transaction.
-        # The caller will commit alerts and audit records together.
+        # Flush within the caller's existing transaction.
+        # The evaluation endpoint owns the final commit.
+        db.add(alert)
         db.flush()
         return alert
+
+
+    db.add(alert)
 
     try:
         db.commit()
